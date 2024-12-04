@@ -1,6 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
+using JetBrains.Application.BuildScript.Install.Launcher;
 using JetBrains.Application.UI.Icons.Shell;
 using JetBrains.DocumentModel;
+using JetBrains.Metadata.Reader.API;
 using JetBrains.ProjectModel;
 using JetBrains.ProjectModel.Resources;
 using JetBrains.ReSharper.Feature.Services.CodeCompletion;
@@ -21,15 +26,87 @@ using JetBrains.TextControl;
 using JetBrains.UI.Icons;
 using JetBrains.UI.RichText;
 using JetBrains.Util;
+using ReSharperPlugin.test.Completions;
 
 namespace ReSharperPlugin.test;
 
 [Language(typeof(CSharpLanguage))]
 public class TestClass : CSharpItemsProviderBase<CSharpCodeCompletionContext>
 {
+    private String Prefix = "res://";
     protected override bool IsAvailable(CSharpCodeCompletionContext context)
     {
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
+    }
+    
+    private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType;
+    
+    private IEnumerable<CompletionItem> FullPathCompletions(CSharpCodeCompletionContext context, VirtualFileSystemPath searchPath)
+    {
+        if (context.GetResourceType() is not { } resourceType)
+            return Enumerable.Empty<CompletionItem>();
+
+        ourFileExtensionsByType.TryGetValue(resourceType, out var matchingFileExtensions);
+        return matchingFileExtensions is null 
+            ? Enumerable.Empty<CompletionItem>()
+            : ResourceFiles(searchPath, matchingFileExtensions);
+    }
+    
+    private IEnumerable<CompletionItem> ResourceFiles(VirtualFileSystemPath path, IList<string> extensions)
+    {
+        var searchDir = SearchDir(path);
+        if (searchDir is null)
+        {
+            return Enumerable.Empty<CompletionItem>();
+        }
+
+        return
+            from p in ResourceFilesInner(searchDir, extensions)
+            select new CompletionItem(p.ExistsDirectory, searchDir,p, p.ExtensionWithDot) ;
+    }
+    
+    private static IEnumerable<VirtualFileSystemPath> ResourceFilesInner(VirtualFileSystemPath path, IList<string> extensions)
+    {
+        if (ShouldIgnore(path))
+        {
+            return Enumerable.Empty<VirtualFileSystemPath>();
+        }
+
+        if (path.ExistsFile && extensions.Any(ext => ext.Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)))
+        {
+            return new[] { path };
+        }
+
+        if (path.ExistsDirectory)
+        {
+            return
+                path.GetChildren()
+                    .SelectMany(child => ResourceFilesInner(child.GetAbsolutePath(), extensions));
+        }
+
+        return Enumerable.Empty<VirtualFileSystemPath>();
+    }
+    
+    private static bool ShouldIgnore(VirtualFileSystemPath path)
+    {
+        // Do not check or suggest:
+        // - dotfiles or directories starting with "."
+        // - iml - some subsidiary file, which Rider creates
+        return path.Name.StartsWith(".")
+               || "import".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
+               || "iml".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
+               || path.ExtensionNoDot.Equals("csproj", StringComparison.OrdinalIgnoreCase)
+               || path.ExtensionNoDot.Equals("sln", StringComparison.OrdinalIgnoreCase);
+    }
+    
+    private static VirtualFileSystemPath SearchDir(VirtualFileSystemPath path)
+    {
+        switch (path.Exists)
+        {
+            case FileSystemPath.Existence.Directory: return path;
+            case FileSystemPath.Existence.Missing:   return path.Parent;
+            default:                                 return null;
+        }
     }
 
     protected override bool AddLookupItems(CSharpCodeCompletionContext context, IItemsCollector collector)
@@ -44,29 +121,78 @@ public class TestClass : CSharpItemsProviderBase<CSharpCodeCompletionContext>
         //return Logger.CatchSilent(() =>
         {
             var projectPath = project.ProjectLocationLive.Value;
-            var stringLiteral = context.ToString();
+            if (projectPath is null) 
+                return false;
+            var stringLiteral = context.StringLiteral();
+            if (stringLiteral is null)
+                return false;
 
             var originalString = string.Empty;
-            if (stringLiteral is { } os)
+            if (stringLiteral.ConstantValue.AsString() is { } os)
             {
                 originalString = os;
             }
-
+            
             var relativePathString = string.Empty;
-            if (originalString.StartsWith("hello"))
-            {
-                relativePathString = originalString.Substring(5);
-            }
-
+            if (originalString.StartsWith(Prefix)) 
+                relativePathString = originalString.Substring(Prefix.Length);
             var searchPath = VirtualFileSystemPath.ParseRelativelyTo(relativePathString, projectPath);
 
-            var lookupItem = new ResourcePathItem(projectPath,
-                new CompletionItem(false, projectPath, searchPath, string.Empty), context.CompletionRanges);
-            collector.Add(lookupItem);
-            return true;
+            var completions = FullPathCompletions(context, searchPath).ToList();
+
+            // If path leads outside project (e.g., due to `..` going up too many levels), don't provide completions.
+            if (!projectPath.IsPrefixOf(searchPath))
+            {
+                return false;
+            }
+
+            if (originalString.StartsWith(Prefix))
+            {
+                completions.AddRange(OneLevelPathCompletions(searchPath));
+            }
+                
+            var items = 
+                (from completion in completions.Distinct() 
+                    select new ResourcePathItem(projectPath, completion, context.CompletionRanges))
+                .ToList();
+            foreach (var item in items)
+            {
+                collector.Add(item);
+            }
+                
+            if (!originalString.StartsWith(Prefix) && completions.Any())
+            {
+                // workarounds RIDER-90857
+                var resItem = new StringLiteralItem(Prefix);
+                var ranges = context.CompletionRanges;
+                var range = new TextLookupRanges(new DocumentRange(ranges.InsertRange.StartOffset + 1,
+                        ranges.InsertRange.EndOffset + 1),
+                    new DocumentRange(ranges.ReplaceRange.StartOffset + 1,
+                        ranges.ReplaceRange.EndOffset - 1)
+                );
+
+                resItem.InitializeRanges(range, context.BasicContext);
+                collector.Add(resItem);
+            }
+            return !items.IsEmpty();
         }
         //);
     }
+    
+    private IEnumerable<CompletionItem> OneLevelPathCompletions(VirtualFileSystemPath path)
+    {
+        var searchDir = SearchDir(path);
+        if (searchDir is null)
+        {
+            return Enumerable.Empty<CompletionItem>();
+        }
+
+        return
+            from child in searchDir.GetChildren()
+            where !ShouldIgnore(child.GetAbsolutePath())
+            select new CompletionItem(child.IsDirectory, searchDir, child.GetAbsolutePath(), child.GetAbsolutePath().ExtensionWithDot);
+    }
+
 }
 
 class CompletionItem
@@ -89,14 +215,14 @@ class CompletionItem
 sealed class ResourcePathItem : TextLookupItemBase
 {
     private readonly CompletionItem myCompletionItem;
-
+    private String Prefix = "res://";
     public ResourcePathItem(VirtualFileSystemPath projectPath,
         CompletionItem completionItem, TextLookupRanges ranges)
     {
         myCompletionItem = completionItem;
         Ranges = ranges;
         Text =
-            $"\"foo/{completionItem.Completion.MakeRelativeTo(projectPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix)}\"";
+            Text = $"\"{Prefix}{completionItem.Completion.MakeRelativeTo(projectPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix)}\"";
     }
 
     protected override RichText GetDisplayName() => LookupUtil.FormatLookupString(

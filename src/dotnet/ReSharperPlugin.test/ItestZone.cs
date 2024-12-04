@@ -8,6 +8,7 @@ namespace ReSharperPlugin.test
     [ZoneDefinition]
     // [ZoneDefinitionConfigurableFeature("Title", "Description", IsInProductSection: false)]
     public interface ItestZone : IZone
+    
     {
     }
 }
