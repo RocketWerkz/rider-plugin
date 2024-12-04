@@ -5,15 +5,15 @@
     <!-- Keep in sync with ProductVersion in gradle.properties -->
     <SdkVersion>2024.1.0</SdkVersion>
 
-    <Title>test</Title>
-    <Description>Description</Description>
+    <Title>RW.Internal.Test</Title>
+    <Description>An Inernal RW Brutal Plugin</Description>
 
-    <Authors>Author</Authors>
-    <Copyright>Copyright $([System.DateTime]::Now.Year) Maintainers of test</Copyright>
+    <Authors>RocketWerkz</Authors>
+    <Copyright>Copyright $([System.DateTime]::Now.Year) RocketWerkz ltd.</Copyright>
     <PackageTags>resharper plugin</PackageTags>
 
     <PackageProjectUrl></PackageProjectUrl>
-    <PackageLicenseUrl></PackageLicenseUrl>
+    <PackageLicenseUrl>https://rocketwerkz.com/</PackageLicenseUrl>
     <PackageIconUrl></PackageIconUrl>
   </PropertyGroup>
 
