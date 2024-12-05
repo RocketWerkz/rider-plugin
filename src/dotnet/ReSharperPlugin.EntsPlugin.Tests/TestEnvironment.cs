@@ -9,7 +9,7 @@ using NUnit.Framework;
 
 [assembly: Apartment(ApartmentState.STA)]
 
-namespace ReSharperPlugin.test.Tests
+namespace ReSharperPlugin.EntsPlugin.Tests
 {
     [ZoneDefinition]
     public class testTestEnvironmentZone : ITestsEnvZone, IRequire<PsiFeatureTestZone>, IRequire<ItestZone> { }

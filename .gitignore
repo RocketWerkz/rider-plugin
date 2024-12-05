@@ -5,6 +5,7 @@ build
 output
 .gradle
 .tmp
+.DS_Store
 
 # User-specific files
 *.suo
@@ -20,3 +21,4 @@ output
 .vs
 _ReSharper*
 _dotTrace*.idea
+

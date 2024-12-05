@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ReSharperPlugin.test\ReSharperPlugin.test.csproj" />
+    <ProjectReference Include="..\ReSharperPlugin.EntsPlugin\ReSharperPlugin.EntsPlugin.csproj" />
   </ItemGroup>
 
   <ItemGroup>

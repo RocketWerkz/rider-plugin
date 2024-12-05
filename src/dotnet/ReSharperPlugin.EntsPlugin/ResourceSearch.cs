@@ -26,12 +26,12 @@ using JetBrains.TextControl;
 using JetBrains.UI.Icons;
 using JetBrains.UI.RichText;
 using JetBrains.Util;
-using ReSharperPlugin.test.Completions;
+using ReSharperPlugin.EntsPlugin.Completions;
 
-namespace ReSharperPlugin.test;
+namespace ReSharperPlugin.EntsPlugin;
 
 [Language(typeof(CSharpLanguage))]
-public class TestClass : CSharpItemsProviderBase<CSharpCodeCompletionContext>
+public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContext>
 {
     private String Prefix = "res://";
     protected override bool IsAvailable(CSharpCodeCompletionContext context)

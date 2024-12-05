@@ -1,6 +1,6 @@
 <idea-plugin require-restart="true">
-  <id>com.jetbrains.rider.plugins.test</id>
-  <name>test</name>
+  <id>com.jetbrains.rider.plugins.EntsRider</id>
+  <name>EntsRider</name>
   <version>_PLACEHOLDER_</version>
   <vendor url="https://project-url">Author</vendor>
   <idea-version since-build="_PLACEHOLDER_" until-build="_PLACEHOLDER_" />
