@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using JetBrains.Application.BuildScript.Install.Launcher;
 using JetBrains.Application.UI.Icons.Shell;
 using JetBrains.DocumentModel;
 using JetBrains.Metadata.Reader.API;
@@ -20,7 +19,6 @@ using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.CSharp;
 using JetBrains.ReSharper.Psi.ExpectedTypes;
 using JetBrains.ReSharper.Psi.Resources;
-using JetBrains.ReSharper.Psi.Resx.Utils;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.TextControl;
 using JetBrains.UI.Icons;
@@ -33,7 +31,7 @@ namespace ReSharperPlugin.EntsPlugin;
 [Language(typeof(CSharpLanguage))]
 public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContext>
 {
-    private String Prefix = "res://";
+    private String Prefix = "Content/";
     protected override bool IsAvailable(CSharpCodeCompletionContext context)
     {
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
@@ -123,6 +121,7 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
             var projectPath = project.ProjectLocationLive.Value;
             if (projectPath is null) 
                 return false;
+            
             var stringLiteral = context.StringLiteral();
             if (stringLiteral is null)
                 return false;
@@ -133,42 +132,45 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
                 originalString = os;
             }
             
+            // Ensure relative path starts from "Content/" prefix
             var relativePathString = string.Empty;
-            if (originalString.StartsWith(Prefix)) 
+            if (originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
                 relativePathString = originalString.Substring(Prefix.Length);
-            var searchPath = VirtualFileSystemPath.ParseRelativelyTo(relativePathString, projectPath);
+            
+            // Start searching from the "Content" folder
+            var contentPath = projectPath.Combine("Content");
+            var searchPath = VirtualFileSystemPath.ParseRelativelyTo(relativePathString, contentPath);
 
             var completions = FullPathCompletions(context, searchPath).ToList();
 
-            // If path leads outside project (e.g., due to `..` going up too many levels), don't provide completions.
-            if (!projectPath.IsPrefixOf(searchPath))
+            // If path leads outside the "Content" folder, skip completions
+            if (!contentPath.IsPrefixOf(searchPath))
             {
                 return false;
             }
 
-            if (originalString.StartsWith(Prefix))
+            if (originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
             {
                 completions.AddRange(OneLevelPathCompletions(searchPath));
             }
                 
-            var items = 
-                (from completion in completions.Distinct() 
-                    select new ResourcePathItem(projectPath, completion, context.CompletionRanges))
-                .ToList();
+            // Create ResourcePathItem for each completion
+            var items = completions.Distinct().Select(completion =>
+                new ResourcePathItem(contentPath, completion, context.CompletionRanges)).ToList();
+            
             foreach (var item in items)
             {
                 collector.Add(item);
             }
                 
-            if (!originalString.StartsWith(Prefix) && completions.Any())
+            if (!originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) && completions.Any())
             {
-                // workarounds RIDER-90857
+                // Add a fallback item with the "Content/" prefix for cases where no completions match
                 var resItem = new StringLiteralItem(Prefix);
                 var ranges = context.CompletionRanges;
-                var range = new TextLookupRanges(new DocumentRange(ranges.InsertRange.StartOffset + 1,
-                        ranges.InsertRange.EndOffset + 1),
-                    new DocumentRange(ranges.ReplaceRange.StartOffset + 1,
-                        ranges.ReplaceRange.EndOffset - 1)
+                var range = new TextLookupRanges(
+                    new DocumentRange(ranges.InsertRange.StartOffset + 1, ranges.InsertRange.EndOffset + 1),
+                    new DocumentRange(ranges.ReplaceRange.StartOffset + 1, ranges.ReplaceRange.EndOffset - 1)
                 );
 
                 resItem.InitializeRanges(range, context.BasicContext);
@@ -177,6 +179,19 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
             return !items.IsEmpty();
         }
         //);
+    }
+    
+    static ResourceSearch()
+    {
+        ourFileExtensionsByType = new Dictionary<IClrTypeName, IList<string>>();
+
+        // Images
+        // PNG     (.png)
+        // JPG     (.jpg, .jpeg)
+        ourFileExtensionsByType.InsertOrAppendAtEach(
+            new[] { BrutalTypes.Texture }, 
+            "png", 
+            "jpg", "jpeg");
     }
     
     private IEnumerable<CompletionItem> OneLevelPathCompletions(VirtualFileSystemPath path)
@@ -215,14 +230,22 @@ class CompletionItem
 sealed class ResourcePathItem : TextLookupItemBase
 {
     private readonly CompletionItem myCompletionItem;
-    private String Prefix = "res://";
     public ResourcePathItem(VirtualFileSystemPath projectPath,
         CompletionItem completionItem, TextLookupRanges ranges)
     {
         myCompletionItem = completionItem;
         Ranges = ranges;
-        Text =
-            Text = $"\"{Prefix}{completionItem.Completion.MakeRelativeTo(projectPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix)}\"";
+        
+        // Force projectPath to point to root/Content
+        var contentPath = projectPath.Combine("Content");
+        
+        // Compute relative path and enforce "Content/" prefix
+        var relativePath = completionItem.Completion.MakeRelativeTo(contentPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix);
+        
+        if (!relativePath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
+            relativePath = $"Content/{relativePath.TrimStart('.', '/')}";
+        
+        Text = $"\"{relativePath}\"";
     }
 
     protected override RichText GetDisplayName() => LookupUtil.FormatLookupString(
