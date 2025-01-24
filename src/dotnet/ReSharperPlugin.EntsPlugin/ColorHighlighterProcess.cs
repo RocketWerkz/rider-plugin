@@ -50,16 +50,6 @@ namespace ReSharperPlugin.EntsPlugin
             if (element is IObjectCreationExpression constructorExpression)
                 return ReferenceFromConstructor(constructorExpression);
 
-            var referenceExpression = element as IReferenceExpression;
-            if (referenceExpression?.QualifierExpression is IReferenceExpression qualifier)
-            {
-                var result = ReferenceFromInvocation(qualifier, referenceExpression)
-                    ?? ReferenceFromProperty(qualifier, referenceExpression);
-                
-                if (result != null)
-                    return result;
-            }
-
             foreach (var provider in providers)
             {
                 var result = provider.GetColorReference(element);
@@ -114,36 +104,6 @@ namespace ReSharperPlugin.EntsPlugin
             return new ColorReference(colorElement, constructorExpression, argumentList, argumentList.GetDocumentRange());
         }
 
-        private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
-                                                                IReferenceExpression methodReferenceExpression)
-        {
-            var invocationExpression = InvocationExpressionNavigator.GetByInvokedExpression(methodReferenceExpression);
-            if (invocationExpression == null || invocationExpression.Arguments.IsEmpty)
-                return null;
-
-            var methodReference = methodReferenceExpression.Reference;
-
-            var name = methodReference.GetName();
-            if (!string.Equals(name, "HSVToRGB", StringComparison.Ordinal)) return null;
-
-            var arguments = invocationExpression.Arguments;
-            if (arguments.Count is < 3 or > 4) return null;
-
-            var color = GetColorFromHSV(arguments);
-            if (color == null) return null;
-
-            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-            if (qualifierType == null) return null;
-
-            var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
-            if (!colorTypes.IsColorTypeSupportingHSV(qualifierType)) return null;
-
-            var colorElement = new ColorElement(color.Value);
-            var argumentList = invocationExpression.ArgumentList;
-            return new ColorReference(colorElement, invocationExpression,
-                argumentList, argumentList.GetDocumentRange());
-        }
-
         private static IColorReference? ReferenceFromProperty(IReferenceExpression qualifier,
                                                               IReferenceExpression colorQualifiedMemberExpression)
         {
@@ -190,17 +150,6 @@ namespace ReSharperPlugin.EntsPlugin
                 return null;
 
             return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
-        }
-
-        private static JetRgbaColor? GetColorFromHSV(ICollection<ICSharpArgument> arguments)
-        {
-            var h = GetArgumentAsFloatConstant(arguments, "H", 0, 1);
-            var s = GetArgumentAsFloatConstant(arguments, "S", 0, 1);
-            var v = GetArgumentAsFloatConstant(arguments, "V", 0, 1);
-
-            if (!h.HasValue || !s.HasValue || !v.HasValue) return null;
-
-            return ColorUtils.ColorFromHSV(h.Value, s.Value, v.Value);
         }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,

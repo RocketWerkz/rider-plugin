@@ -42,24 +42,6 @@ namespace ReSharperPlugin.EntsPlugin
         {
             return ColorType != null && ColorType.Equals(typeElement);
         }
-
-        public bool IsColorTypeSupportingHSV([CanBeNull] ITypeElement typeElement)
-        {
-            return ColorType != null && ColorType.Equals(typeElement);
-        }
-
-        public static bool IsColorProperty(ITypeMember typeMember)
-        {
-            if (typeMember is IProperty && typeMember.IsStatic)
-            {
-                var colorTypes = GetInstance(typeMember.Module);
-                return colorTypes.IsColorTypeSupportingProperties(typeMember.GetContainingType())
-                       && BrutalNamedColors.Get(typeMember.ShortName).HasValue;
-            }
-
-            return false;
-        }
-
         public static Pair<ITypeElement, ITypeMember>? PropertyFromColorElement(ITypeElement qualifierType, IColorElement colorElement, IPsiModule module)
         {
             var colorName = BrutalNamedColors.GetColorName(colorElement.RGBColor);

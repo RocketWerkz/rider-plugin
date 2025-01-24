@@ -33,9 +33,6 @@ namespace ReSharperPlugin.EntsPlugin
             if (TryReplaceAsNamedColor(colorElement))
                 return;
 
-            if (TryReplaceAsHSV(colorElement))
-                return;
-
             TryReplaceAsConstructor(colorElement);
         }
 
@@ -62,37 +59,6 @@ namespace ReSharperPlugin.EntsPlugin
 
             var oldExp = myOwningExpression as ICSharpExpression;
             return oldExp?.ReplaceBy(newExp) != null;
-        }
-
-        private bool TryReplaceAsHSV(IColorElement colorElement)
-        {
-            // Only do this if we've already got a call to HSVToRGB
-            var invocationExpression = myOwningExpression as IInvocationExpression;
-            if (invocationExpression == null || invocationExpression.Reference?.GetName() != "HSVToRGB" ||
-                invocationExpression.Arguments.Count < 3)
-            {
-                return false;
-            }
-
-            var newColor = colorElement.RGBColor;
-            ColorUtils.ColorToHSV(newColor, out var h, out var s, out var v);
-
-            // Round to 2 decimal places to match the values shown in the colour palette quick fix
-            h = (float) Math.Round(h, 2);
-            s = (float) Math.Round(s, 2);
-            v = (float) Math.Round(v, 2);
-
-            var module = myOwningExpression.GetPsiModule();
-            var elementFactory = CSharpElementFactory.GetInstance(Owner);
-
-            // ReSharper disable AssignNullToNotNullAttribute
-            var arguments = invocationExpression.Arguments;
-            arguments[0].Value.ReplaceBy(elementFactory.CreateExpressionByConstantValue(ConstantValue.Float(h, module)));
-            arguments[1].Value.ReplaceBy(elementFactory.CreateExpressionByConstantValue(ConstantValue.Float(s, module)));
-            arguments[2].Value.ReplaceBy(elementFactory.CreateExpressionByConstantValue(ConstantValue.Float(v, module)));
-            // ReSharper restore AssignNullToNotNullAttribute
-
-            return true;
         }
 
         private void TryReplaceAsConstructor(IColorElement colorElement)
