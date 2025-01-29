@@ -16,12 +16,24 @@ using JetBrains.Util.Media;
 
 namespace ReSharperPlugin.EntsPlugin
 {
+    /// <summary>
+    /// `CSharpIncrementalDaemonStageProcessBase` is a base class for analyzing C# code in small chunks (incremental
+    /// processing). Highlights color-related expressions (eg. `new Color(r, g, b)`) in the editor.
+    /// </summary>
     public class ColorHighlighterProcess : CSharpIncrementalDaemonStageProcessBase
     {
         private readonly IEnumerable<IColorReferenceProvider> myProviders;
 
-        public ColorHighlighterProcess(IEnumerable<IColorReferenceProvider> providers, IDaemonProcess process, IContextBoundSettingsStore settingsStore,
-                                            ICSharpFile file)
+        /// <summary>
+        ///     Constructor that initializes the process and stores the providers for later use in identifying color
+        ///     references.
+        /// </summary>
+        // <param name="providers">A collection of objects (`IColorReferenceProvider`) that help resolve color references in code.</param>
+        // <param name="process">Represents the daemon process handling the analysis.</param>
+        // <param name="settingsStore">Provides access to plugin-specific settings.</param>
+        // <param name="file">The C# file being analyzed.</param>
+        public ColorHighlighterProcess(IEnumerable<IColorReferenceProvider> providers, IDaemonProcess process,
+            IContextBoundSettingsStore settingsStore, ICSharpFile file)
             : base(process, settingsStore, file)
         {
             myProviders = providers;
@@ -32,6 +44,8 @@ namespace ReSharperPlugin.EntsPlugin
             if (element is ITokenNode tokenNode && tokenNode.GetTokenType().IsWhitespace) return;
 
             var colorInfo = CreateColorHighlightingInfo(element, myProviders);
+            
+            // If a valid color is found, add a highlight to the editor
             if (colorInfo != null)
                 consumer.AddHighlighting(colorInfo.Highlighting, colorInfo.Range);
         }
@@ -44,9 +58,10 @@ namespace ReSharperPlugin.EntsPlugin
                 ? new HighlightingInfo(range.Value, new ColorHintHighlighting(colorReference))
                 : null;
         }
-
+        
         private static IColorReference? GetColorReference(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
         {
+            // Checks if the node is a `new` expression (eg. `new Color(r, g, b)`)
             if (element is IObjectCreationExpression constructorExpression)
                 return ReferenceFromConstructor(constructorExpression);
 
@@ -60,6 +75,9 @@ namespace ReSharperPlugin.EntsPlugin
             return null;
         }
 
+        /// <summary>
+        ///     Handles color references created via constructors (eg. `new Color32(r, g, b, a)`).
+        /// </summary>
         private static IColorReference? ReferenceFromConstructor(IObjectCreationExpression constructorExpression)
         {
             // Get the type from the constructor, which allows us to support target typed new. This will fail to resolve
@@ -79,6 +97,7 @@ namespace ReSharperPlugin.EntsPlugin
             var arguments = constructorExpression.Arguments;
             if (arguments.Count is < 3 or > 4) return null;
 
+            // Checks if the type matches known color types (`Color`, `Color32`)
             JetRgbaColor? color = null;
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(constructedType))
             {
@@ -126,6 +145,9 @@ namespace ReSharperPlugin.EntsPlugin
                  colorQualifiedMemberExpression, colorQualifiedMemberExpression.NameIdentifier.GetDocumentRange());
         }
 
+        /// <summary>
+        ///     Extracts ARGB values from float arguments (eg. `new Color(0.5f, 0.2f, 0.8f)`).
+        /// </summary>
         private static (float? alpha, JetRgbaColor)? GetColorFromFloatArgb(ICollection<ICSharpArgument> arguments)
         {
             var a = GetArgumentAsFloatConstant(arguments, "a", 0, 1);
@@ -139,6 +161,9 @@ namespace ReSharperPlugin.EntsPlugin
             return (a, JetRgbaColor.FromRgb((byte)(255.0 * r.Value), (byte)(255.0 * g.Value), (byte)(255.0 * b.Value)));
         }
 
+        /// <summary>
+        ///     Extracts ARGB values from integer arguments (eg. `new Color32(128, 64, 255)`).
+        /// </summary>
         private static (int? alpha, JetRgbaColor)? GetColorFromIntArgb(ICollection<ICSharpArgument> arguments)
         {
             var a = GetArgumentAsIntConstant(arguments, "a", 0, 255);
@@ -159,6 +184,9 @@ namespace ReSharperPlugin.EntsPlugin
             return ArgumentAsFloatConstant(min, max, expression);
         }
 
+        /// <summary>
+        ///     Validates and clamps float constants to a valid range.
+        /// </summary>
         public static float? ArgumentAsFloatConstant(float min, float max, IExpression? expression)
         {
             if (expression == null) return null;
@@ -187,6 +215,9 @@ namespace ReSharperPlugin.EntsPlugin
                 : null;
         }
 
+        /// <summary>
+        ///     Finds an argument by its parameter name (eg. `r`, `g`, `b`, `a`).
+        /// </summary>
         private static ICSharpArgument? GetNamedArgument(IEnumerable<ICSharpArgument> arguments, string parameterName)
         {
             return arguments.FirstOrDefault(a =>

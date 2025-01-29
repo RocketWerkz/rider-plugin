@@ -8,6 +8,9 @@ using JetBrains.Util;
 
 namespace ReSharperPlugin.EntsPlugin
 {
+    /// <summary>
+    /// Helps manage and cache color-related type elements.
+    /// </summary>
     public class ColorTypes
     {
         private static readonly Key<ColorTypes> ourColorTypesKey = new Key<ColorTypes>("ColorTypes");
@@ -29,9 +32,13 @@ namespace ReSharperPlugin.EntsPlugin
             var cache = module.GetPsiServices().Symbols.GetSymbolScope(module, true, true);
         }
 
+        // References to color-related type `UnityEngine.Color` and `UnityEngine.Color32`
         [CanBeNull] public ITypeElement ColorType { get; }
         [CanBeNull] public ITypeElement Color32Type { get; }
 
+        /// <summary>
+        ///     Checks if `typeElement` is either `ColorType` or `Color32Type`.
+        /// </summary>
         public bool IsColorType([CanBeNull] ITypeElement typeElement)
         {
             return (ColorType != null && ColorType.Equals(typeElement))
@@ -42,8 +49,10 @@ namespace ReSharperPlugin.EntsPlugin
         {
             return ColorType != null && ColorType.Equals(typeElement);
         }
+        
         public static Pair<ITypeElement, ITypeMember>? PropertyFromColorElement(ITypeElement qualifierType, IColorElement colorElement, IPsiModule module)
         {
+            // Uses `BrutalNamedColors.cs` to get the color's name (eg. "Red", "Blue")
             var colorName = BrutalNamedColors.GetColorName(colorElement.RGBColor);
             if (string.IsNullOrEmpty(colorName))
                 return null;

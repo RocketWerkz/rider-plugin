@@ -230,6 +230,7 @@ class CompletionItem
 sealed class ResourcePathItem : TextLookupItemBase
 {
     private readonly CompletionItem myCompletionItem;
+    
     public ResourcePathItem(VirtualFileSystemPath projectPath,
         CompletionItem completionItem, TextLookupRanges ranges)
     {
@@ -240,7 +241,8 @@ sealed class ResourcePathItem : TextLookupItemBase
         var contentPath = projectPath.Combine("Content");
         
         // Compute relative path and enforce "Content/" prefix
-        var relativePath = completionItem.Completion.MakeRelativeTo(contentPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix);
+        var relativePath = completionItem.Completion.MakeRelativeTo(contentPath)
+            .NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix);
         
         if (!relativePath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
             relativePath = $"Content/{relativePath.TrimStart('.', '/')}";

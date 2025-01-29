@@ -9,8 +9,14 @@ using JetBrains.ReSharper.Psi.Tree;
 
 namespace ReSharperPlugin.EntsPlugin
 {
+    /// <summary>
+    /// Responsible for handling and manipulating color references in a codebase, such as converting between named
+    /// colors and RGB(A) constructor expressions.
+    /// </summary>
     public class ColorReference : IColorReference
     {
+        // Stores the owning expression (eg. constructor call, method invocation, or property access) that represents
+        // the color.
         private readonly IExpression myOwningExpression;
 
         public ColorReference(IColorElement colorElement, IExpression owningExpression, ITreeNode owner,
@@ -21,6 +27,7 @@ namespace ReSharperPlugin.EntsPlugin
             Owner = owner;
             ColorConstantRange = colorConstantRange;
 
+            // Defines binding options for the color reference (eg. whether to bind to names or values)
             BindOptions = new ColorBindOptions
             {
                 BindsToName = true,
@@ -28,16 +35,22 @@ namespace ReSharperPlugin.EntsPlugin
             };
         }
 
+        /// <summary>
+        ///     Attempts to replace the color reference with a new one using the provided `colorElement`.
+        /// </summary>
         public void Bind(IColorElement colorElement)
         {
+            // Replaces the reference with a named color (eg. `Color.Red`)
             if (TryReplaceAsNamedColor(colorElement))
                 return;
 
+            // Replaces the reference with a constructor-based color (eg. `Color(r, g, b, a)`)
             TryReplaceAsConstructor(colorElement);
         }
 
         public IEnumerable<IColorElement> GetColorTable()
         {
+            // Returns a predefined set of named colors from `BrutalNamedColors.cs`
             return BrutalNamedColors.GetColorTable();
         }
 
@@ -46,10 +59,15 @@ namespace ReSharperPlugin.EntsPlugin
         public IColorElement ColorElement { get; }
         public ColorBindOptions BindOptions { get; }
 
+        /// <summary>
+        ///     Attempts to replace the color with a named color using the current expression.
+        /// </summary>
         private bool TryReplaceAsNamedColor(IColorElement colorElement)
         {
+            // Gets the type of color reference
             var colorType = GetColorType();
 
+            // Checks if the named color is compatible with the type and generates a new expression like `Color.Red`
             var newColor = ColorTypes.PropertyFromColorElement(colorType, colorElement,
                 myOwningExpression.GetPsiModule());
             if (newColor == null) return false;
@@ -61,10 +79,15 @@ namespace ReSharperPlugin.EntsPlugin
             return oldExp?.ReplaceBy(newExp) != null;
         }
 
+        /// <summary>
+        ///     Replaces the current color reference with a constructor-based expression.
+        /// </summary>
         private void TryReplaceAsConstructor(IColorElement colorElement)
         {
+            // Extracts the RGB(A) values from the provided `colorElement`
             var newColor = colorElement.RGBColor;
 
+            // Determines the type of color (`Color` or `Color32`)
             var colorType = GetColorType();
             if (colorType == null) return;
 
@@ -74,6 +97,7 @@ namespace ReSharperPlugin.EntsPlugin
 
             var requiresAlpha = newColor.A != byte.MaxValue;
 
+            // Handles both float and int for RGB(A) components, depending on the type (`Color` vs. `Color32`).
             ConstantValue r, g, b, a;
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(colorType))
             {
@@ -119,17 +143,23 @@ namespace ReSharperPlugin.EntsPlugin
             oldExp.ReplaceBy(newExp);
         }
 
+        /// <summary>
+        ///     Determines the type of color reference (eg. `System.Drawing.Color` or `UnityEngine.Color`)
+        /// </summary>
         private ITypeElement GetColorType()
         {
+            // Checks for qualified expressions (eg. `Color.Red`)
             var referenceExpression = myOwningExpression as IReferenceExpression;
             var qualifier = referenceExpression?.QualifierExpression as IReferenceExpression;
             if (qualifier != null)
                 return qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
 
+            // Checks for method calls (eg. `Color.FromArgb(255, 0, 0)`)
             var invocationExpression = myOwningExpression as IInvocationExpression;
             if (invocationExpression != null)
                 return invocationExpression.Reference?.Resolve().DeclaredElement as ITypeElement;
 
+            // Checks for constructor invocations (eg. `new Color(255, 0, 0)`)
             var objectCreationExpression = myOwningExpression as IObjectCreationExpression;
             return objectCreationExpression?.TypeReference?.Resolve().DeclaredElement as ITypeElement;
         }

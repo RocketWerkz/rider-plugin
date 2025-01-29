@@ -1,13 +1,19 @@
+using System;
 using System.Collections.Generic;
 using JetBrains.ReSharper.Psi.Colors;
 using JetBrains.Util.Media;
 
 namespace ReSharperPlugin.EntsPlugin
 {
+    /// <summary>
+    /// Responsible for mapping color names (eg. "red", "blue") to ARGB values and vice versa. Uses a dictionary
+    /// (NamedColors) to store the mappings + look up color names and their associated RGBA values.
+    /// </summary>
     public static class BrutalNamedColors
     {
+        // Corresponding RGBA values are stored as `uint`s
         private static readonly Dictionary<string, uint> NamedColors =
-            new Dictionary<string, uint>()
+            new()
             {
                 {"red", 0xFFFF0000},
                 {"green", 0xFF00FF00},
