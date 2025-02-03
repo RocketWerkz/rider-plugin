@@ -21,8 +21,8 @@ namespace ReSharperPlugin.EntsPlugin
         public static bool IsBrutalLoad(this IInvocationExpression invocation)
         {
             var containingType = invocation.InvokedMethodContainingType();
-            return (BrutalTypes.ResourceLoader.Equals(containingType)
-                    || BrutalTypes.GD.Equals(containingType))
+            return (KnownTypes.ResourceLoader.Equals(containingType)
+                    || KnownTypes.GD.Equals(containingType))
                    && "Load".Equals(invocation.InvokedMethodName());
         }
 

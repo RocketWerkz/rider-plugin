@@ -30,6 +30,9 @@ namespace ReSharperPlugin.EntsPlugin
         private ColorTypes([NotNull] IPsiModule module)
         {
             var cache = module.GetPsiServices().Symbols.GetSymbolScope(module, true, true);
+            
+            ColorType = cache.GetTypeElementByCLRName(KnownTypes.Float4);
+            Color32Type = cache.GetTypeElementByCLRName(KnownTypes.Float4);
         }
 
         // References to color-related type `UnityEngine.Color` and `UnityEngine.Color32`

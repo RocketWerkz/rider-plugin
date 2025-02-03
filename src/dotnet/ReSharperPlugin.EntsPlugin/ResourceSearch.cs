@@ -181,19 +181,6 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         //);
     }
     
-    static ResourceSearch()
-    {
-        ourFileExtensionsByType = new Dictionary<IClrTypeName, IList<string>>();
-
-        // Images
-        // PNG     (.png)
-        // JPG     (.jpg, .jpeg)
-        ourFileExtensionsByType.InsertOrAppendAtEach(
-            new[] { BrutalTypes.Texture }, 
-            "png", 
-            "jpg", "jpeg");
-    }
-    
     private IEnumerable<CompletionItem> OneLevelPathCompletions(VirtualFileSystemPath path)
     {
         var searchDir = SearchDir(path);
