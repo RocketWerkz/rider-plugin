@@ -10,14 +10,15 @@ using JetBrains.ReSharper.Psi.Tree;
 namespace ReSharperPlugin.EntsPlugin
 {
     /// <summary>
-    /// Responsible for handling and manipulating color references in a codebase, such as converting between named
-    /// colors and RGB(A) constructor expressions.
+    /// Responsible for handling and manipulating color references in a codebase, such as RGB(A) constructor
+    /// expressions.
     /// </summary>
     public class ColorReference : IColorReference
     {
         // Stores the owning expression (eg. constructor call, method invocation, or property access) that represents
         // the color.
         private readonly IExpression myOwningExpression;
+        private IColorReference colorReferenceImplementation;
 
         public ColorReference(IColorElement colorElement, IExpression owningExpression, ITreeNode owner,
             DocumentRange colorConstantRange)
@@ -27,10 +28,9 @@ namespace ReSharperPlugin.EntsPlugin
             Owner = owner;
             ColorConstantRange = colorConstantRange;
 
-            // Defines binding options for the color reference (eg. whether to bind to names or values)
+            // Defines binding options for the color reference (values only)
             BindOptions = new ColorBindOptions
             {
-                BindsToName = true,
                 BindsToValue = true
             };
         }
@@ -40,18 +40,13 @@ namespace ReSharperPlugin.EntsPlugin
         /// </summary>
         public void Bind(IColorElement colorElement)
         {
-            // Replaces the reference with a named color (eg. `Color.Red`)
-            if (TryReplaceAsNamedColor(colorElement))
-                return;
-
             // Replaces the reference with a constructor-based color (eg. `Color(r, g, b, a)`)
             TryReplaceAsConstructor(colorElement);
         }
 
         public IEnumerable<IColorElement> GetColorTable()
         {
-            // Returns a predefined set of named colors from `BrutalNamedColors.cs`
-            return BrutalNamedColors.GetColorTable();
+            return colorReferenceImplementation.GetColorTable();
         }
 
         public ITreeNode Owner { get; }
@@ -60,34 +55,12 @@ namespace ReSharperPlugin.EntsPlugin
         public ColorBindOptions BindOptions { get; }
 
         /// <summary>
-        ///     Attempts to replace the color with a named color using the current expression.
-        /// </summary>
-        private bool TryReplaceAsNamedColor(IColorElement colorElement)
-        {
-            // Gets the type of color reference
-            var colorType = GetColorType();
-
-            // Checks if the named color is compatible with the type and generates a new expression like `Color.Red`
-            var newColor = ColorTypes.PropertyFromColorElement(colorType, colorElement,
-                myOwningExpression.GetPsiModule());
-            if (newColor == null) return false;
-
-            var newExp = CSharpElementFactory.GetInstance(Owner)
-                .CreateExpression("$0.$1", newColor.Value.First, newColor.Value.Second);
-
-            var oldExp = myOwningExpression as ICSharpExpression;
-            return oldExp?.ReplaceBy(newExp) != null;
-        }
-
-        /// <summary>
         ///     Replaces the current color reference with a constructor-based expression.
         /// </summary>
         private void TryReplaceAsConstructor(IColorElement colorElement)
         {
             // Extracts the RGB(A) values from the provided `colorElement`
             var newColor = colorElement.RGBColor;
-
-            // Determines the type of color (`Color` or `Color32`)
             var colorType = GetColorType();
             if (colorType == null) return;
 
@@ -97,7 +70,7 @@ namespace ReSharperPlugin.EntsPlugin
 
             var requiresAlpha = newColor.A != byte.MaxValue;
 
-            // Handles both float and int for RGB(A) components, depending on the type (`Color` vs. `Color32`).
+            // Converts RGB(A) values to float (0-1 range) when the color type matches
             ConstantValue r, g, b, a;
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(colorType))
             {
@@ -106,16 +79,6 @@ namespace ReSharperPlugin.EntsPlugin
                 g = ConstantValue.Float((float) Math.Round(newColor.G / 255.0, 2), module);
                 b = ConstantValue.Float((float) Math.Round(newColor.B / 255.0, 2), module);
                 a = ConstantValue.Float((float) Math.Round(newColor.A / 255.0, 2), module);
-            }
-            else if (colorTypes.Color32Type != null && colorTypes.Color32Type.Equals(colorType))
-            {
-                // ReSharper formats byte constants with an explicit cast
-                r = ConstantValue.Int(newColor.R, module);
-                g = ConstantValue.Int(newColor.G, module);
-                b = ConstantValue.Int(newColor.B, module);
-                a = ConstantValue.Int(newColor.A, module);
-
-                requiresAlpha = true;
             }
             else
                 return;
@@ -144,22 +107,16 @@ namespace ReSharperPlugin.EntsPlugin
         }
 
         /// <summary>
-        ///     Determines the type of color reference (eg. `System.Drawing.Color` or `UnityEngine.Color`)
+        ///     Determines the type of color reference, specifically for `Brutal.float4`.
         /// </summary>
         private ITypeElement GetColorType()
         {
-            // Checks for qualified expressions (eg. `Color.Red`)
-            var referenceExpression = myOwningExpression as IReferenceExpression;
-            var qualifier = referenceExpression?.QualifierExpression as IReferenceExpression;
-            if (qualifier != null)
-                return qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-
-            // Checks for method calls (eg. `Color.FromArgb(255, 0, 0)`)
+            // Checks if the expression is a method call and resolves its type
             var invocationExpression = myOwningExpression as IInvocationExpression;
             if (invocationExpression != null)
                 return invocationExpression.Reference?.Resolve().DeclaredElement as ITypeElement;
 
-            // Checks for constructor invocations (eg. `new Color(255, 0, 0)`)
+            // Checks if the expression is an object creation and resolves its type
             var objectCreationExpression = myOwningExpression as IObjectCreationExpression;
             return objectCreationExpression?.TypeReference?.Resolve().DeclaredElement as ITypeElement;
         }

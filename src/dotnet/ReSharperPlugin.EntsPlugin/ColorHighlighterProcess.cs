@@ -76,15 +76,15 @@ namespace ReSharperPlugin.EntsPlugin
         }
 
         /// <summary>
-        ///     Handles color references created via constructors (eg. `new Color32(r, g, b, a)`).
+        ///     Handles color references created via constructors (eg. `new Color(r, g, b, a)`).
         /// </summary>
         private static IColorReference? ReferenceFromConstructor(IObjectCreationExpression constructorExpression)
         {
-            // Get the type from the constructor, which allows us to support target typed new. This will fail to resolve
-            // if the parameters don't match (e.g. calling new Color32(r, g, b) without passing a), so fall back to the
-            // expression's type, if available.
+            // Get the type from the constructor, which allows us to support target typed `new`. This will fail to
+            // resolve if the parameters don't match (eg. calling new Color(r, g, b) without passing `a`), so fall back
+            // to the expression's type if available.
             // Note that we don't do further validation of the parameters, so we'll still show a colour preview for
-            // Color32(r, g, b) even though it's an invalid method call.
+            // Color(r, g, b) even though it's an invalid method call.
             var constructedType =
                 (constructorExpression.ConstructorReference.Resolve().DeclaredElement as IConstructor)?.ContainingType
                 ?? constructorExpression.TypeReference?.Resolve().DeclaredElement as ITypeElement;
@@ -97,7 +97,7 @@ namespace ReSharperPlugin.EntsPlugin
             var arguments = constructorExpression.Arguments;
             if (arguments.Count is < 3 or > 4) return null;
 
-            // Checks if the type matches known color types (`Color`, `Color32`)
+            // Checks if the type matches known color type `Color`
             JetRgbaColor? color = null;
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(constructedType))
             {
@@ -107,42 +107,12 @@ namespace ReSharperPlugin.EntsPlugin
                 var (a, rgb) = baseColor.Value;
                 color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
             }
-            else if (colorTypes.Color32Type != null && colorTypes.Color32Type.Equals(constructedType))
-            {
-                var baseColor = GetColorFromIntArgb(arguments);
-                if (baseColor == null) return null;
-
-                var (a, rgb) = baseColor.Value;
-                color = a.HasValue ? rgb.WithA((byte)a) : rgb;
-            }
 
             if (color == null) return null;
 
             var colorElement = new ColorElement(color.Value);
             var argumentList = constructorExpression.ArgumentList;
             return new ColorReference(colorElement, constructorExpression, argumentList, argumentList.GetDocumentRange());
-        }
-
-        private static IColorReference? ReferenceFromProperty(IReferenceExpression qualifier,
-                                                              IReferenceExpression colorQualifiedMemberExpression)
-        {
-            var name = colorQualifiedMemberExpression.Reference.GetName();
-
-            var color = BrutalNamedColors.Get(name);
-            if (color == null) return null;
-
-            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-            if (qualifierType == null) return null;
-
-            var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
-            if (!colorTypes.IsColorTypeSupportingProperties(qualifierType)) return null;
-
-            var property = colorQualifiedMemberExpression.Reference.Resolve().DeclaredElement as IProperty;
-            if (property == null) return null;
-
-            var colorElement = new ColorElement(color.Value, name);
-            return new ColorReference(colorElement, colorQualifiedMemberExpression,
-                 colorQualifiedMemberExpression, colorQualifiedMemberExpression.NameIdentifier.GetDocumentRange());
         }
 
         /// <summary>
@@ -159,22 +129,6 @@ namespace ReSharperPlugin.EntsPlugin
                 return null;
 
             return (a, JetRgbaColor.FromRgb((byte)(255.0 * r.Value), (byte)(255.0 * g.Value), (byte)(255.0 * b.Value)));
-        }
-
-        /// <summary>
-        ///     Extracts ARGB values from integer arguments (eg. `new Color32(128, 64, 255)`).
-        /// </summary>
-        private static (int? alpha, JetRgbaColor)? GetColorFromIntArgb(ICollection<ICSharpArgument> arguments)
-        {
-            var a = GetArgumentAsIntConstant(arguments, "a", 0, 255);
-            var r = GetArgumentAsIntConstant(arguments, "r", 0, 255);
-            var g = GetArgumentAsIntConstant(arguments, "g", 0, 255);
-            var b = GetArgumentAsIntConstant(arguments, "b", 0, 255);
-
-            if (!r.HasValue || !g.HasValue || !b.HasValue)
-                return null;
-
-            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
         }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
@@ -204,15 +158,6 @@ namespace ReSharperPlugin.EntsPlugin
                 return null;
 
             return (float) value.Value;
-        }
-
-        private static int? GetArgumentAsIntConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
-            int min, int max)
-        {
-            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
-            return constantValue != null && constantValue.IsInteger(out var value) && value.Clamp(min, max) == value
-                ? value
-                : null;
         }
 
         /// <summary>

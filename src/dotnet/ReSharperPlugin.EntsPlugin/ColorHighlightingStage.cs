@@ -11,9 +11,9 @@ using JetBrains.ReSharper.Psi.Tree;
 
 namespace ReSharperPlugin.EntsPlugin
 {
-    // `Instantiation.DemandAnyThreadSafe` specifies that this daemon stage can be instantiated in a thread-safe manner
-    // `CSharpDaemonStageBase` is a daemon stage specifically for analyzing C# files
-    [DaemonStage(Instantiation.DemandAnyThreadSafe, StagesBefore = new[] {typeof(IdentifierHighlightingStage)})]
+    // `Instantiation.DemandAnyThreadSafe` specifies that this daemon stage can be instantiated in a thread-safe manner.
+    // `CSharpDaemonStageBase` is a daemon stage specifically for analyzing C# files.
+    [DaemonStage(Instantiation.DemandAnyThreadSafe, StagesBefore = [typeof(IdentifierHighlightingStage)])]
     public class ColorHighlightingStage : CSharpDaemonStageBase
     {
         /// <summary>
@@ -23,25 +23,23 @@ namespace ReSharperPlugin.EntsPlugin
         // <param name="settings">Settings for the current context (eg. highlighting preferences).</param>
         // <param name="processKind">Specifies what type of analysis is being performed (eg. visible document analysis).</param>
         // <param name="file">The C# file being analyzed.</param>
-        protected override IDaemonStageProcess CreateProcess(IDaemonProcess process, IContextBoundSettingsStore settings,
-            DaemonProcessKind processKind, ICSharpFile file)
+        protected override IDaemonStageProcess CreateProcess(IDaemonProcess process, IContextBoundSettingsStore 
+            settings, DaemonProcessKind processKind, ICSharpFile file)
         {
             if (processKind == DaemonProcessKind.VISIBLE_DOCUMENT &&
                 settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled))
             {
-                return new ColorHighlighterProcess(file.GetSolution().GetComponents<IColorReferenceProvider>(), process, settings, file);
+                return new ColorHighlighterProcess(file.GetSolution().GetComponents<IColorReferenceProvider>(),
+                    process, settings, file);
             }
             return null;
         }
 
         protected override bool IsSupported(IPsiSourceFile sourceFile)
         {
-            // Determines whether this daemon stage should run on the given source file
-            if (sourceFile == null || !sourceFile.IsValid())
-                return false;
-
-            // Ensure that the file belongs to the C# language
-            return sourceFile.IsLanguageSupported<CSharpLanguage>();
+            // Determines whether this daemon stage should run on the given source file and ensures that the file
+            // belongs to the C# language
+            return sourceFile.IsValid() && sourceFile.IsLanguageSupported<CSharpLanguage>();
         }
     }
 }

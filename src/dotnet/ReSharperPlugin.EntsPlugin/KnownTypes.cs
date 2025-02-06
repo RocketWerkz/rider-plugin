@@ -1,9 +1,13 @@
+#nullable enable
+
+using System.Diagnostics.CodeAnalysis;
 using JetBrains.Metadata.Reader.API;
 using JetBrains.Metadata.Reader.Impl;
 
 namespace ReSharperPlugin.EntsPlugin
 {
-    static class KnownTypes
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    public static class KnownTypes
     {
         public static readonly IClrTypeName GD = new ClrTypeName("GD");
         public static readonly IClrTypeName ResourceLoader = new ClrTypeName("ResourceLoader");
