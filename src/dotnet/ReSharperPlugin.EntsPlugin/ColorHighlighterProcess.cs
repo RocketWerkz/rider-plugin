@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains;
 using JetBrains.Application.Settings;
+using JetBrains.Diagnostics;
 using JetBrains.ReSharper.Daemon.CSharp.Stages;
 using JetBrains.ReSharper.Feature.Services.ColorHints;
 using JetBrains.ReSharper.Feature.Services.Daemon;
@@ -101,12 +102,18 @@ namespace ReSharperPlugin.EntsPlugin
             JetRgbaColor? color = null;
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(constructedType))
             {
+                // Unwind the arugments into a string
+                var argString = string.Join(", ", arguments.Select(foo => foo.MatchingParameter?.Element.ShortName));
+                Log.Root.Info($"Arg list: {argString}");
+                
                 var baseColor = GetColorFromFloatArgb(arguments);
                 if (baseColor == null) return null;
 
                 var (a, rgb) = baseColor.Value;
                 color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
             }
+            
+            Log.Root.Info("Color Code: " + color);
 
             if (color == null) return null;
 
@@ -120,11 +127,12 @@ namespace ReSharperPlugin.EntsPlugin
         /// </summary>
         private static (float? alpha, JetRgbaColor)? GetColorFromFloatArgb(ICollection<ICSharpArgument> arguments)
         {
-            var a = GetArgumentAsFloatConstant(arguments, "a", 0, 1);
-            var r = GetArgumentAsFloatConstant(arguments, "r", 0, 1);
-            var g = GetArgumentAsFloatConstant(arguments, "g", 0, 1);
-            var b = GetArgumentAsFloatConstant(arguments, "b", 0, 1);
+            var a = GetArgumentAsFloatConstant(arguments, "w", 0, 1);
+            var r = GetArgumentAsFloatConstant(arguments, "x", 0, 1);
+            var g = GetArgumentAsFloatConstant(arguments, "y", 0, 1);
+            var b = GetArgumentAsFloatConstant(arguments, "z", 0, 1);
 
+            Log.Root.Info($"GetColorFromFloat W:{a} X:{r} Y:{g} Z:{b}");
             if (!r.HasValue || !g.HasValue || !b.HasValue)
                 return null;
 
