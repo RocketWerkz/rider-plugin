@@ -100,13 +100,17 @@ namespace ReSharperPlugin.EntsPlugin
 
             // Checks if the type matches known color type `Color`
             JetRgbaColor? color = null;
+            
+            // Only one ColorType of Float4
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(constructedType))
             {
-                // Unwind the arugments into a string
+                // Unwind the arguments into a string for logging purposes
                 var argString = string.Join(", ", arguments.Select(foo => foo.MatchingParameter?.Element.ShortName));
                 Log.Root.Info($"Arg list: {argString}");
                 
-                var baseColor = GetColorFromFloatArgb(arguments);
+                // Attempt to parse color from floating-point ARGB, otherwise try integer ARGB
+                var baseColor = GetColorFromFloatArgb(arguments) ?? GetColorFromIntArgb(arguments);
+
                 if (baseColor == null) return null;
 
                 var (a, rgb) = baseColor.Value;
@@ -123,7 +127,7 @@ namespace ReSharperPlugin.EntsPlugin
         }
 
         /// <summary>
-        ///     Extracts ARGB values from float arguments (eg. `new Color(0.5f, 0.2f, 0.8f)`).
+        ///     Extracts ARGB values from float arguments (eg. `new float4(0.5f, 0.2f, 0.8f, 1f)`).
         /// </summary>
         private static (float? alpha, JetRgbaColor)? GetColorFromFloatArgb(ICollection<ICSharpArgument> arguments)
         {
@@ -137,6 +141,20 @@ namespace ReSharperPlugin.EntsPlugin
                 return null;
 
             return (a, JetRgbaColor.FromRgb((byte)(255.0 * r.Value), (byte)(255.0 * g.Value), (byte)(255.0 * b.Value)));
+        }
+        
+        /// <summary>
+        ///     Extracts ARGB values from integer arguments (eg. `new float4(255, 0, 0, 1)`).
+        /// </summary>
+        private static (int? alpha, JetRgbaColor)? GetColorFromIntArgb(ICollection<ICSharpArgument> arguments)
+        {
+            var a = GetArgumentAsIntConstant(arguments, "w", 0, 255);
+            var r = GetArgumentAsIntConstant(arguments, "x", 0, 255);
+            var g = GetArgumentAsIntConstant(arguments, "y", 0, 255);
+            var b = GetArgumentAsIntConstant(arguments, "z", 0, 255);
+            if (!r.HasValue || !g.HasValue || !b.HasValue)
+                return null;
+            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
         }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
@@ -166,6 +184,15 @@ namespace ReSharperPlugin.EntsPlugin
                 return null;
 
             return (float) value.Value;
+        }
+        
+        private static int? GetArgumentAsIntConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+            int min, int max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            return constantValue != null && constantValue.IsInteger(out var value) && value.Clamp(min, max) == value
+                ? value
+                : null;
         }
 
         /// <summary>
