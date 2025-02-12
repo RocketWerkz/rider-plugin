@@ -60,11 +60,23 @@ namespace ReSharperPlugin.EntsPlugin
                 : null;
         }
         
+        /// <summary>
+        ///     Attempts to retrieve a color reference
+        /// </summary>
         private static IColorReference? GetColorReference(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
         {
-            // Checks if the node is a `new` expression (eg. `new Color(r, g, b)`)
+            // Checks if a `new` object creation expression (eg. `new float4(r, g, b, a)`)
             if (element is IObjectCreationExpression constructorExpression)
                 return ReferenceFromConstructor(constructorExpression);
+            
+            // Checks if a invocation expression (eg. `float4.FromArgb(r, g, b, a)`)
+            var referenceExpression = element as IReferenceExpression;
+            if (referenceExpression?.QualifierExpression is IReferenceExpression qualifier)
+            {
+                var result = ReferenceFromInvocation(qualifier, referenceExpression);
+                if (result != null)
+                    return result;
+            }
 
             foreach (var provider in providers)
             {
@@ -75,9 +87,11 @@ namespace ReSharperPlugin.EntsPlugin
             
             return null;
         }
-
+        
+        // We can remove this method once we confirm `ReferenceFromInvocation` works as we don't want to support float4
+        // color structs.
         /// <summary>
-        ///     Handles color references created via constructors (eg. `new Color(r, g, b, a)`).
+        ///     Handles color references created via constructors (eg. `new float4(r, g, b, a)`).
         /// </summary>
         private static IColorReference? ReferenceFromConstructor(IObjectCreationExpression constructorExpression)
         {
@@ -100,23 +114,24 @@ namespace ReSharperPlugin.EntsPlugin
 
             // Checks if the type matches known color type `Color`
             JetRgbaColor? color = null;
-            
+
             // Only one ColorType of Float4
             if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(constructedType))
             {
                 // Unwind the arguments into a string for logging purposes
                 var argString = string.Join(", ", arguments.Select(foo => foo.MatchingParameter?.Element.ShortName));
                 Log.Root.Info($"Arg list: {argString}");
-                
+
                 // Attempt to parse color from floating-point ARGB, otherwise try integer ARGB
                 var baseColor = GetColorFromFloatArgb(arguments) ?? GetColorFromIntArgb(arguments);
 
                 if (baseColor == null) return null;
 
+                // If an alpha value exists, adjust the color's transparency, otherwise default to full opacity (255)
                 var (a, rgb) = baseColor.Value;
                 color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
             }
-            
+
             Log.Root.Info("Color Code: " + color);
 
             if (color == null) return null;
@@ -124,6 +139,43 @@ namespace ReSharperPlugin.EntsPlugin
             var colorElement = new ColorElement(color.Value);
             var argumentList = constructorExpression.ArgumentList;
             return new ColorReference(colorElement, constructorExpression, argumentList, argumentList.GetDocumentRange());
+        }
+        
+        /// <summary>
+        ///     Handles color references created via an invocation of the `float4.FromArgb(r, g, b, a)` method
+        /// </summary>
+        private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
+            IReferenceExpression methodReferenceExpression)
+        {
+            var invocationExpression = InvocationExpressionNavigator.GetByInvokedExpression(methodReferenceExpression);
+            if (invocationExpression == null || invocationExpression.Arguments.IsEmpty)
+                return null;
+
+            var methodReference = methodReferenceExpression.Reference;
+
+            // Extract the name of the method being invoked and ensure it matches "FromArgb" (case-sensitive check)
+            var name = methodReference.GetName();
+            
+            // The method name must be hardcoded so temporarily use `FromArgb` until confirmed
+            if (!string.Equals(name, "FromArgb", StringComparison.Ordinal)) return null;
+            
+            var arguments = invocationExpression.Arguments;
+            if (arguments.Count is < 3 or > 4) return null;
+            
+            // Attempt to parse color from floating-point ARGB, otherwise try integer ARGB
+            var baseColor = GetColorFromFloatArgb(arguments) ?? GetColorFromIntArgb(arguments);
+            if (baseColor == null) return null;
+            
+            // If an alpha value exists, adjust the color's transparency, otherwise default to full opacity (255)
+            var (a, rgb) = baseColor.Value;
+            JetRgbaColor? color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
+
+            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
+            if (qualifierType == null) return null;
+
+            var colorElement = new ColorElement(color.Value);
+            var argumentList = invocationExpression.ArgumentList;
+            return new ColorReference(colorElement, invocationExpression, argumentList, argumentList.GetDocumentRange());
         }
 
         /// <summary>
