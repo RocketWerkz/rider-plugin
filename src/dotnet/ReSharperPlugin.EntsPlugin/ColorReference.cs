@@ -70,15 +70,25 @@ namespace ReSharperPlugin.EntsPlugin
 
             var requiresAlpha = newColor.A != byte.MaxValue;
 
-            // Converts RGB(A) values to float (0-1 range) when the color type matches
+            // Handles both float and byte for RGB(A) components, depending on the type
+            // (`ColorFloatType` vs. `ColorByteType`).
             ConstantValue r, g, b, a;
-            if (colorTypes.ColorType != null && colorTypes.ColorType.Equals(colorType))
+            if (colorTypes.ColorFloatType != null && colorTypes.ColorFloatType.Equals(colorType))
             {
                 // Round to 2 decimal places, to match the values shown in the colour palette quick fix
                 r = ConstantValue.Float((float) Math.Round(newColor.R / 255.0, 2), module);
                 g = ConstantValue.Float((float) Math.Round(newColor.G / 255.0, 2), module);
                 b = ConstantValue.Float((float) Math.Round(newColor.B / 255.0, 2), module);
                 a = ConstantValue.Float((float) Math.Round(newColor.A / 255.0, 2), module);
+            }
+            else if (colorTypes.ColorByteType != null && colorTypes.ColorByteType.Equals(colorType))
+            {
+                // ReSharper formats byte constants with an explicit cast
+                r = ConstantValue.Byte(newColor.R, module);
+                g = ConstantValue.Byte(newColor.G, module);
+                b = ConstantValue.Byte(newColor.B, module);
+                a = ConstantValue.Byte(newColor.A, module);
+                requiresAlpha = true;
             }
             else
                 return;
@@ -107,16 +117,15 @@ namespace ReSharperPlugin.EntsPlugin
         }
 
         /// <summary>
-        ///     Determines the type of color reference, specifically for `Brutal.float4`.
+        ///     Determines the color type based on the owning expression.
         /// </summary>
         private ITypeElement GetColorType()
         {
-            // Checks if the expression is a method call and resolves its type
-            var invocationExpression = myOwningExpression as IInvocationExpression;
-            if (invocationExpression != null)
+            // Checks if the expression is a method call (eg. float4.Rgba())
+            if (myOwningExpression is IInvocationExpression invocationExpression)
                 return invocationExpression.Reference?.Resolve().DeclaredElement as ITypeElement;
 
-            // Checks if the expression is an object creation and resolves its type
+            // Checks if the expression is an object creation (eg. new float4())
             var objectCreationExpression = myOwningExpression as IObjectCreationExpression;
             return objectCreationExpression?.TypeReference?.Resolve().DeclaredElement as ITypeElement;
         }

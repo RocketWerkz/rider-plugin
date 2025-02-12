@@ -31,19 +31,21 @@ namespace ReSharperPlugin.EntsPlugin
         {
             var cache = module.GetPsiServices().Symbols.GetSymbolScope(module, true, true);
             
-            // Only keep ColorType and not Color32Type
-            ColorType = cache.GetTypeElementByCLRName(KnownTypes.Float4);
+            ColorFloatType = cache.GetTypeElementByCLRName(KnownTypes.Float4);
+            ColorByteType = cache.GetTypeElementByCLRName(KnownTypes.Byte4);
         }
 
         // Naming was previously references to color-related type `UnityEngine.Color` and `UnityEngine.Color32`
-        [CanBeNull] public ITypeElement ColorType { get; }
+        [CanBeNull] public ITypeElement ColorFloatType { get; }
+        [CanBeNull] public ITypeElement ColorByteType { get; }
 
         /// <summary>
-        ///     Checks if `typeElement` is `ColorType`.
+        ///     Checks if `typeElement` is either `ColorFloatType` or `ColorByteType`.
         /// </summary>
         public bool IsColorType([CanBeNull] ITypeElement typeElement)
         {
-            return ColorType != null && ColorType.Equals(typeElement);
+            return (ColorFloatType != null && ColorFloatType.Equals(typeElement))
+                   || (ColorByteType != null && ColorByteType.Equals(typeElement));
         }
     }
 }
