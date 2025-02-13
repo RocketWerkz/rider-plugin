@@ -19,7 +19,7 @@ namespace ReSharperPlugin.EntsPlugin
 {
     /// <summary>
     /// `CSharpIncrementalDaemonStageProcessBase` is a base class for analyzing C# code in small chunks (incremental
-    /// processing). Highlights color-related expressions (eg. `new Color(r, g, b)`) in the editor.
+    /// processing). Highlights color-related expressions (eg. `float4.Rgba(r, g, b, a`) in the editor.
     /// </summary>
     public class ColorHighlighterProcess : CSharpIncrementalDaemonStageProcessBase
     {
@@ -44,16 +44,16 @@ namespace ReSharperPlugin.EntsPlugin
         {
             if (element is ITokenNode tokenNode && tokenNode.GetTokenType().IsWhitespace) return;
 
-            var colorInfo = CreateColorHighlightingInfo(element, myProviders);
+            var colorInfo = CreateColorHighlightingInfo(element);
             
             // If a valid color is found, add a highlight to the editor
             if (colorInfo != null)
                 consumer.AddHighlighting(colorInfo.Highlighting, colorInfo.Range);
         }
 
-        private HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
+        private HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element)
         {
-            var colorReference = GetColorReference(element, providers);
+            var colorReference = GetColorReference(element);
             var range = colorReference?.ColorConstantRange;
             return range?.IsValid() == true
                 ? new HighlightingInfo(range.Value, new ColorHintHighlighting(colorReference))
@@ -61,97 +61,26 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Attempts to retrieve a color reference and ensures only one reference is returned (so there are no two
-        ///     color icon displays).
+        ///     Attempts to retrieve a color reference and ensures only one reference is returned (so there are no
+        ///     multiple color icon displays).
         /// </summary>
-        private static IColorReference? GetColorReference(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
+        private static IColorReference? GetColorReference(ITreeNode element)
         {
-            // Checks if a `new` object creation expression (eg. `new float4(r, g, b, a)`)
-            if (element is IObjectCreationExpression constructorExpression)
-            {
-                var reference = ReferenceFromConstructor(constructorExpression);
-                if (reference != null)
-                    return reference;
-            }
+            // Checks if an invocation expression (eg. `float4.Rgba(r, g, b, a)` or `Color.red`)
+            if (element is not IReferenceExpression 
+                {
+                    QualifierExpression: IReferenceExpression qualifier
+                } referenceExpression) return null;
             
-            // Checks if an invocation expression (eg. `float4.Rgba(r, g, b, a)`)
-            if (element is IReferenceExpression { QualifierExpression: IReferenceExpression qualifier } referenceExpression)
-            {
-                var reference = ReferenceFromInvocation(qualifier, referenceExpression);
-                if (reference != null)
-                    return reference;
-            }
+            var reference = ReferenceFromInvocation(qualifier, referenceExpression);
+            if (reference != null)
+                return reference;
+                
+            reference = ReferenceFromProperty(qualifier, referenceExpression);
+            if (reference != null)
+                return reference;
 
-            // Fallback which checks additional providers only if no reference was found above
-            foreach (var provider in providers)
-            {
-                var reference = provider.GetColorReference(element);
-                if (reference != null)
-                    return reference;
-            }
-            
             return null;
-        }
-        
-        // We can remove this method once we confirm `ReferenceFromInvocation` works as we don't want to support float4
-        // color structs.
-        /// <summary>
-        ///     Handles color references created via constructors.
-        ///     eg. `new float4(r, g, b, a)`.
-        ///     eg. `new byte4(r, g, b, a)`.
-        /// </summary>
-        private static IColorReference? ReferenceFromConstructor(IObjectCreationExpression constructorExpression)
-        {
-            // Get the type from the constructor, which allows us to support target typed `new`. This will fail to
-            // resolve if the parameters don't match (eg. calling new float4(r, g, b) without passing `a`), so fall
-            // back to the expression's type if available.
-            // Note that we don't do further validation of the parameters, so we'll still show a colour preview for
-            // float4(r, g, b) even though it's an invalid method call.
-            var constructedType =
-                (constructorExpression.ConstructorReference.Resolve().DeclaredElement as IConstructor)?.ContainingType
-                ?? constructorExpression.TypeReference?.Resolve().DeclaredElement as ITypeElement;
-            if (constructedType == null)
-                return null;
-
-            var colorTypes = ColorTypes.GetInstance(constructedType.Module);
-            if (!colorTypes.IsColorType(constructedType)) return null;
-
-            var arguments = constructorExpression.Arguments;
-            if (arguments.Count is < 3 or > 4) return null;
-
-            // Checks if the type matches known color types (`ColorFloatType`, `ColorByteType`)
-            JetRgbaColor? color = null;
-            if (colorTypes.ColorFloatType != null && colorTypes.ColorFloatType.Equals(constructedType))
-            {
-                // Unwind the float4 argument values into a string for logging purposes
-                var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
-                Log.Root.Error($"ReferenceFromConstructor ColorFloatType argValues: {argValues}");
-
-                // Attempt to parse color from floating-point RGBA
-                var baseColor = GetColorFromFloatXyzw(arguments);
-                if (baseColor == null) return null;
-
-                // If an alpha value exists, adjust the color's transparency, otherwise default to full opacity (255)
-                var (a, rgb) = baseColor.Value;
-                color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
-            }
-            else if (colorTypes.ColorByteType != null && colorTypes.ColorByteType.Equals(constructedType))
-            {
-                // Unwind the byte4 argument values into a string for logging purposes
-                var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
-                Log.Root.Error($"ReferenceFromConstructor ColorByteType argValues: {argValues}");
-
-                var baseColor = GetColorFromByteXyzw(arguments);
-                if (baseColor == null) return null;
-                var (a, rgb) = baseColor.Value;
-                color = a.HasValue ? rgb.WithA((byte)a) : rgb;
-            }
-
-            if (color == null) return null;
-
-            var colorElement = new ColorElement(color.Value);
-            var argumentList = constructorExpression.ArgumentList;
-            return new ColorReference(colorElement, constructorExpression, argumentList, argumentList.GetDocumentRange());
         }
         
         /// <summary>
@@ -188,7 +117,7 @@ namespace ReSharperPlugin.EntsPlugin
             
             // Checks if the type matches known color types (`ColorFloatType`, `ColorByteType`)
             JetRgbaColor? color = null;
-            if (colorTypes.ColorFloatType != null && colorTypes.ColorFloatType.Equals(qualifierType))
+            if (colorTypes.ColorFloat4Type != null && colorTypes.ColorFloat4Type.Equals(qualifierType))
             {
                 // Attempt to parse color from floating-point RGBA
                 var baseColor = GetColorFromFloatRgba(arguments);
@@ -198,7 +127,7 @@ namespace ReSharperPlugin.EntsPlugin
                 var (a, rgb) = baseColor.Value;
                 color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
             }
-            else if (colorTypes.ColorByteType != null && colorTypes.ColorByteType.Equals(qualifierType))
+            else if (colorTypes.ColorByte4Type != null && colorTypes.ColorByte4Type.Equals(qualifierType))
             {
                 var baseColor = GetColorFromByteRgba(arguments);
                 if (baseColor == null) return null;
@@ -214,18 +143,31 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Extracts RGBA values from float arguments via xyzw (eg. `new float4(0.5f, 0.2f, 0.8f, 1f)`).
+        ///     Handles color references created from a predefined color property (eg. `Color.red`).
         /// </summary>
-        private static (float? alpha, JetRgbaColor)? GetColorFromFloatXyzw(ICollection<ICSharpArgument> arguments)
+        private static IColorReference? ReferenceFromProperty(IReferenceExpression qualifier,
+            IReferenceExpression colorQualifiedMemberExpression)
         {
-            var r = GetArgumentAsFloatConstant(arguments, "x", 0, 1);
-            var g = GetArgumentAsFloatConstant(arguments, "y", 0, 1);
-            var b = GetArgumentAsFloatConstant(arguments, "z", 0, 1);
-            var a = GetArgumentAsFloatConstant(arguments, "w", 0, 1);
-            if (!r.HasValue || !g.HasValue || !b.HasValue)
-                return null;
+            // Get the name of the referenced property (eg., "red" in "Color.red")
+            var name = colorQualifiedMemberExpression.Reference.GetName();
 
-            return (a, JetRgbaColor.FromRgb((byte)(255.0 * r.Value), (byte)(255.0 * g.Value), (byte)(255.0 * b.Value)));
+            // Look up the name in our predefined color list
+            var color = BrutalNamedColors.Get(name);
+            if (color == null) return null;
+
+            // Resolve the type of the qualifier (eg., "Color" in "Color.red") -> in our case should be float4 or byte4?
+            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
+            if (qualifierType == null) return null;
+            
+            var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
+            if (!colorTypes.IsColorTypeSupportingProperties(qualifierType)) return null;
+
+            var property = colorQualifiedMemberExpression.Reference.Resolve().DeclaredElement as IProperty;
+            if (property == null) return null;
+
+            var colorElement = new ColorElement(color.Value, name);
+            return new ColorReference(colorElement, colorQualifiedMemberExpression,
+                colorQualifiedMemberExpression, colorQualifiedMemberExpression.NameIdentifier.GetDocumentRange());
         }
 
         /// <summary>
@@ -244,31 +186,17 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Extracts RGBA values from byte arguments via xyzw (eg. `new byte4(255, 0, 0, 255)`).
-        /// </summary>
-        private static (int? alpha, JetRgbaColor)? GetColorFromByteXyzw(ICollection<ICSharpArgument> arguments)
-        {
-            var r = GetArgumentAsIntConstant(arguments, "x", 0, 255);
-            var g = GetArgumentAsIntConstant(arguments, "y", 0, 255);
-            var b = GetArgumentAsIntConstant(arguments, "z", 0, 255);
-            var a = GetArgumentAsIntConstant(arguments, "w", 0, 255);
-            if (!r.HasValue || !g.HasValue || !b.HasValue)
-                return null;
-            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
-        }
-        
-        /// <summary>
         ///     Extracts RGBA values from byte arguments via rgba (eg. `byte4.Rgba(r, g, b, a)`).
         /// </summary>
-        private static (int? alpha, JetRgbaColor)? GetColorFromByteRgba(ICollection<ICSharpArgument> arguments)
+        private static (byte? alpha, JetRgbaColor)? GetColorFromByteRgba(ICollection<ICSharpArgument> arguments)
         {
-            var r = GetArgumentAsIntConstant(arguments, "r", 0, 255);
-            var g = GetArgumentAsIntConstant(arguments, "g", 0, 255);
-            var b = GetArgumentAsIntConstant(arguments, "b", 0, 255);
-            var a = GetArgumentAsIntConstant(arguments, "a", 0, 255);
+            var r = GetArgumentAsByteConstant(arguments, "r", 0, 255);
+            var g = GetArgumentAsByteConstant(arguments, "g", 0, 255);
+            var b = GetArgumentAsByteConstant(arguments, "b", 0, 255);
+            var a = GetArgumentAsByteConstant(arguments, "a", 0, 255);
             if (!r.HasValue || !g.HasValue || !b.HasValue)
                 return null;
-            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
+            return (a, JetRgbaColor.FromRgb(r.Value, g.Value, b.Value));
         }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
@@ -300,12 +228,33 @@ namespace ReSharperPlugin.EntsPlugin
             return (float) value.Value;
         }
         
-        private static int? GetArgumentAsIntConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
-            int min, int max)
+        /// <summary>
+        ///     Extracts a byte constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max).
+        /// </summary>
+        private static byte? GetArgumentAsByteConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+            byte min, byte max)
         {
             var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
-            return constantValue != null && constantValue.IsInteger(out var value) && value.Clamp(min, max) == value
-                ? value
+            
+            // Checks if the value is an integer and within valid byte range (0 to 255) then casts it to a byte
+            return constantValue != null && constantValue.IsInteger(out var value) && value >= min && value <= max
+                ? (byte)value
+                : null;
+        }
+        
+        /// <summary>
+        ///     Extracts a ushort constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max).
+        /// </summary>
+        private static ushort? GetArgumentAsUshortConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+            ushort min, ushort max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            
+            // Checks if the value is an integer and within valid ushort range (0 to 255) then casts it to a ushort
+            return constantValue != null && constantValue.IsInteger(out var value) && value >= min && value <= max
+                ? (ushort)value
                 : null;
         }
 
