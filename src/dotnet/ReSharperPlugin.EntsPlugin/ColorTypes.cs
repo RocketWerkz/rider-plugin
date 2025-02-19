@@ -37,6 +37,8 @@ namespace ReSharperPlugin.EntsPlugin
             
             ColorUshort3Type = cache.GetTypeElementByCLRName(KnownTypes.Ushort3);
             ColorUshort4Type = cache.GetTypeElementByCLRName(KnownTypes.Ushort4);
+            
+            ColorType = cache.GetTypeElementByCLRName(KnownTypes.Color);
         }
 
         // Naming was previously references to color-related type `UnityEngine.Color` and `UnityEngine.Color32` only
@@ -46,9 +48,10 @@ namespace ReSharperPlugin.EntsPlugin
         [CanBeNull] public ITypeElement ColorByte4Type { get; }
         [CanBeNull] public ITypeElement ColorUshort3Type { get; }
         [CanBeNull] public ITypeElement ColorUshort4Type { get; }
+        [CanBeNull] public ITypeElement ColorType { get; }
 
         /// <summary>
-        ///     Checks if `typeElement` is any of the six types above.
+        ///     Checks if `typeElement` is any of the types above.
         /// </summary>
         public bool IsColorType([CanBeNull] ITypeElement typeElement)
         {
@@ -57,19 +60,14 @@ namespace ReSharperPlugin.EntsPlugin
                    || (ColorByte3Type != null && ColorByte3Type.Equals(typeElement))
                    || (ColorByte4Type != null && ColorByte4Type.Equals(typeElement))
                    || (ColorUshort3Type != null && ColorUshort3Type.Equals(typeElement))
-                   || (ColorUshort4Type != null && ColorUshort4Type.Equals(typeElement));
+                   || (ColorUshort4Type != null && ColorUshort4Type.Equals(typeElement))
+                   || (ColorType != null && ColorType.Equals(typeElement));
         }
         
         /// <summary>
         ///     Checks if `ColorFloat4Type` supports color properties (used for color name mappings?)
         /// </summary>
         public bool IsColorTypeSupportingProperties([CanBeNull] ITypeElement typeElement)
-        {
-            return ColorFloat4Type != null && ColorFloat4Type.Equals(typeElement);
-        }
-        
-        // Add back in HSV support
-        public bool IsColorTypeSupportingHSV([CanBeNull] ITypeElement typeElement)
         {
             return ColorFloat4Type != null && ColorFloat4Type.Equals(typeElement);
         }

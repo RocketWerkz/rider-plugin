@@ -75,17 +75,16 @@ namespace ReSharperPlugin.EntsPlugin
             var reference = ReferenceFromInvocation(qualifier, referenceExpression);
             if (reference != null)
                 return reference;
-                
-            reference = ReferenceFromProperty(qualifier, referenceExpression);
+
             if (reference != null)
                 return reference;
 
             return null;
         }
-        
+
         /// <summary>
         ///     Handles color references created via an invocation of the `float4.Rgba(r, g, b, a)` method.
-        ///     Or `byte4.Rgba(r, g, b, a)`.
+        ///     And `byte4.Rgba(r, g, b, a)` and `ushort4.Rgba(r, g, b, a)`.
         /// </summary>
         private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
             IReferenceExpression methodReferenceExpression)
@@ -98,76 +97,137 @@ namespace ReSharperPlugin.EntsPlugin
 
             // Extract the name of the method being invoked and ensure it matches (case-sensitive check)
             var name = methodReference.GetName();
-            
-            // The method name must be hardcoded so temporarily use `Rgba` until confirmed
-            if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
-            
+
+            // Check # of arguments so correct method name and color type is used
             var arguments = invocationExpression.Arguments;
-            if (arguments.Count is < 3 or > 4) return null;
-            
+            bool isOneArg = arguments.Count == 1;
+            bool isThreeArgs = arguments.Count == 3;
+            bool isFourArgs = arguments.Count == 4;
+            if (!isOneArg && !isThreeArgs && !isFourArgs)
+                return null;
+
             // Unwind the argument values into a string for logging purposes
             var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
             Log.Root.Error($"argValues: {argValues}");
-            
+
             var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-            if (qualifierType == null) return null;
+            if (qualifierType is null) return null;
 
             var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
             if (!colorTypes.IsColorType(qualifierType)) return null;
+
+            // Validate method name based on color type and argument count
+            if (isOneArg)
+            {
+                // byte3 and byte4 both use "HexColor" when given one argument
+                if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
+                {
+                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
+                }
+                else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
+                {
+                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
+                }
+            }
+            else if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
+            {
+                // Float4Type always uses "Rgba", even with three arguments
+                if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
+            }
+            else
+            {
+                // Other types follow Rgb (three args) and Rgba (four args) convention
+                if (!((isThreeArgs && string.Equals(name, "Rgb", StringComparison.Ordinal)) ||
+                      (isFourArgs && string.Equals(name, "Rgba", StringComparison.Ordinal))))
+                {
+                    return null;
+                }
+            }
             
-            // Checks if the type matches known color types (`ColorFloatType`, `ColorByteType`)
+            // Checks if the type matches any of the known color types
             JetRgbaColor? color = null;
-            if (colorTypes.ColorFloat4Type != null && colorTypes.ColorFloat4Type.Equals(qualifierType))
+            
+            // Float4Type supports both 3 & 4 arguments and always uses "Rgba" method name
+            if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
             {
                 // Attempt to parse color from floating-point RGBA
                 var baseColor = GetColorFromFloatRgba(arguments);
-                if (baseColor == null) return null;
-                
-                // If an alpha value exists, adjust the color's transparency, otherwise default to full opacity (255)
+                if (baseColor is null) return null;
+
+                // If an alpha value exists, adjust the color's transparency accordingly, otherwise default to full
+                // opacity (1)
                 var (a, rgb) = baseColor.Value;
-                color = a.HasValue ? rgb.WithA((byte)(255.0 * a)) : rgb;
+                color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(255.0 * a.Value));
             }
-            else if (colorTypes.ColorByte4Type != null && colorTypes.ColorByte4Type.Equals(qualifierType))
+            else if (colorTypes.ColorFloat3Type is not null && colorTypes.ColorFloat3Type.Equals(qualifierType) && isThreeArgs)
             {
-                var baseColor = GetColorFromByteRgba(arguments);
-                if (baseColor == null) return null;
-                var (a, rgb) = baseColor.Value;
-                color = a.HasValue ? rgb.WithA((byte)a) : rgb;
-            }
+                var baseColor = GetColorFromFloatRgba(arguments);
+                if (baseColor is null) return null;
             
-            if (color == null) return null;
+                // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+                var (_, rgb) = baseColor.Value;
+                color = rgb.WithA(255);
+            }
+            else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
+            {
+                if (isFourArgs)
+                {
+                    var baseColor = GetColorFromByteRgba(arguments);
+                    if (baseColor is null) return null;
+                    var (a, rgb) = baseColor.Value;
+                    color = rgb.WithA((byte)a);
+                }
+                else if (isOneArg)
+                {
+                    var baseColor = GetColorFromHexColorRgba(arguments);
+                    if (baseColor is null) return null;
+                    var (a, hex) = baseColor.Value;
+                    color = hex.WithA((byte)a);
+                }
+            }
+            else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
+            {
+                if (isThreeArgs)
+                {
+                    var baseColor = GetColorFromByteRgba(arguments);
+                    if (baseColor is null) return null;
+
+                    // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+                    var (_, rgb) = baseColor.Value;
+                    color = rgb.WithA(255);
+                }
+                else if (isOneArg)
+                {
+                    var baseColor = GetColorFromHexColor(arguments);
+                    if (baseColor is null) return null;
+
+                    // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+                    var (_, hex) = baseColor.Value;
+                    color = hex.WithA(255);
+                }
+            }
+            else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType) && isFourArgs)
+            {
+                var baseColor = GetColorFromUshortRgba(arguments);
+                if (baseColor is null) return null;
+                var (a, rgb) = baseColor.Value;
+                color = rgb.WithA((byte)a);
+            }
+            else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType) && isThreeArgs)
+            {
+                var baseColor = GetColorFromUshortRgba(arguments); 
+                if (baseColor is null) return null;
+                
+                // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+                var (_, rgb) = baseColor.Value;
+                color = rgb.WithA(255);
+            }
+
+            if (color is null) return null;
             
             var colorElement = new ColorElement(color.Value);
             var argumentList = invocationExpression.ArgumentList;
             return new ColorReference(colorElement, invocationExpression, argumentList, argumentList.GetDocumentRange());
-        }
-        
-        /// <summary>
-        ///     Handles color references created from a predefined color property (eg. `Color.red`).
-        /// </summary>
-        private static IColorReference? ReferenceFromProperty(IReferenceExpression qualifier,
-            IReferenceExpression colorQualifiedMemberExpression)
-        {
-            // Get the name of the referenced property (eg., "red" in "Color.red")
-            var name = colorQualifiedMemberExpression.Reference.GetName();
-
-            // Look up the name in our predefined color list
-            var color = BrutalNamedColors.Get(name);
-            if (color == null) return null;
-
-            // Resolve the type of the qualifier (eg., "Color" in "Color.red") -> in our case should be float4 or byte4?
-            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-            if (qualifierType == null) return null;
-            
-            var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
-            if (!colorTypes.IsColorTypeSupportingProperties(qualifierType)) return null;
-
-            var property = colorQualifiedMemberExpression.Reference.Resolve().DeclaredElement as IProperty;
-            if (property == null) return null;
-
-            var colorElement = new ColorElement(color.Value, name);
-            return new ColorReference(colorElement, colorQualifiedMemberExpression,
-                colorQualifiedMemberExpression, colorQualifiedMemberExpression.NameIdentifier.GetDocumentRange());
         }
 
         /// <summary>
@@ -197,6 +257,50 @@ namespace ReSharperPlugin.EntsPlugin
             if (!r.HasValue || !g.HasValue || !b.HasValue)
                 return null;
             return (a, JetRgbaColor.FromRgb(r.Value, g.Value, b.Value));
+        }
+        
+        /// <summary>
+        ///     Extracts RGBA values from ushort arguments via rgba (eg. `ushort4.Rgba(r, g, b, a)`).
+        /// </summary>
+        private static (ushort? alpha, JetRgbaColor)? GetColorFromUshortRgba(ICollection<ICSharpArgument> arguments)
+        {
+            var r = GetArgumentAsUshortConstant(arguments, "r", 0, ushort.MaxValue);
+            var g = GetArgumentAsUshortConstant(arguments, "g", 0, ushort.MaxValue);
+            var b = GetArgumentAsUshortConstant(arguments, "b", 0, ushort.MaxValue);
+            var a = GetArgumentAsUshortConstant(arguments, "a", 0, ushort.MaxValue);
+            if (!r.HasValue || !g.HasValue || !b.HasValue)
+                return null;
+            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
+        }
+        
+        /// <summary>
+        ///     Extracts RGB values from uint hex argument via rgb.
+        /// </summary>
+        private static (byte? alpha, JetRgbaColor)? GetColorFromHexColor(ICollection<ICSharpArgument> arguments)
+        {
+            var hex = GetArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            if (!hex.HasValue)
+                return null;
+            byte a = (byte)(hex >> 24);
+            byte r = (byte)(hex >> 16);
+            byte g = (byte)(hex >> 8);
+            byte b = (byte)hex;
+            return (a, JetRgbaColor.FromRgb(r, g, b));
+        }
+        
+        /// <summary>
+        ///     Extracts RGBA values from uint hex argument via rgba.
+        /// </summary>
+        private static (byte? alpha, JetRgbaColor)? GetColorFromHexColorRgba(ICollection<ICSharpArgument> arguments)
+        {
+            var hex = GetArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            if (!hex.HasValue)
+                return null;
+            byte a = (byte)hex;
+            byte r = (byte)(hex >> 24);
+            byte g = (byte)(hex >> 16);
+            byte b = (byte)(hex >> 8);
+            return (a, JetRgbaColor.FromRgb(r, g, b));
         }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
@@ -252,9 +356,22 @@ namespace ReSharperPlugin.EntsPlugin
         {
             var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
             
-            // Checks if the value is an integer and within valid ushort range (0 to 255) then casts it to a ushort
-            return constantValue != null && constantValue.IsInteger(out var value) && value >= min && value <= max
+            // Checks if the value is an integer and within valid ushort range (0 to 65,535) then casts it to a ushort
+            return constantValue != null && constantValue.IsInteger(out var value) && value.Clamp(min, max) == value
                 ? (ushort)value
+                : null;
+        }
+        
+        /// <summary>
+        ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max).
+        /// </summary>
+        private static uint? GetArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+            uint min, uint max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            return constantValue != null && constantValue.IsInteger(out var value) && value >= min && value <= max
+                ? (uint)value
                 : null;
         }
 
