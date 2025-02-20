@@ -134,6 +134,11 @@ namespace ReSharperPlugin.EntsPlugin
                 // Float4Type always uses "Rgba", even with three arguments
                 if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
             }
+            else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
+            {
+                // Ushort4Type always uses "Rgba", even with three arguments
+                if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
+            }
             else
             {
                 // Other types follow Rgb (three args) and Rgba (four args) convention
@@ -170,48 +175,44 @@ namespace ReSharperPlugin.EntsPlugin
             }
             else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
             {
+                (byte? alpha, JetRgbaColor)? baseColor = null;
                 if (isFourArgs)
-                {
-                    var baseColor = GetColorFromByteRgba(arguments);
-                    if (baseColor is null) return null;
-                    var (a, rgb) = baseColor.Value;
-                    color = rgb.WithA((byte)a);
-                }
+                    baseColor = GetColorFromByteRgba(arguments);
                 else if (isOneArg)
-                {
-                    var baseColor = GetColorFromHexColorRgba(arguments);
-                    if (baseColor is null) return null;
-                    var (a, hex) = baseColor.Value;
-                    color = hex.WithA((byte)a);
-                }
+                    baseColor = GetColorFromHexColorRgba(arguments);
+                if (baseColor is null) return null;
+                var (a, hex) = baseColor.Value;
+                color = hex.WithA((byte)a);
             }
             else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
             {
+                (byte? alpha, JetRgbaColor)? baseColor = null;
                 if (isThreeArgs)
-                {
-                    var baseColor = GetColorFromByteRgba(arguments);
-                    if (baseColor is null) return null;
-
-                    // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
-                    var (_, rgb) = baseColor.Value;
-                    color = rgb.WithA(255);
-                }
+                    baseColor = GetColorFromByteRgba(arguments);
                 else if (isOneArg)
-                {
-                    var baseColor = GetColorFromHexColor(arguments);
-                    if (baseColor is null) return null;
+                    baseColor = GetColorFromHexColorRgb(arguments);
+                if (baseColor is null) return null;
 
-                    // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
-                    var (_, hex) = baseColor.Value;
-                    color = hex.WithA(255);
-                }
+                // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+                var (_, rgb) = baseColor.Value;
+                color = rgb.WithA(255);
             }
-            else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType) && isFourArgs)
+            else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
             {
                 var baseColor = GetColorFromUshortRgba(arguments);
                 if (baseColor is null) return null;
-                var (a, rgb) = baseColor.Value;
-                color = rgb.WithA((byte)a);
+                
+                // If we only have three args default set the alpha value to 255 (full opacity)
+                if (isThreeArgs)
+                {
+                    var (_, rgb) = baseColor.Value;
+                    color = rgb.WithA(255);
+                }
+                else if (isFourArgs)
+                {
+                    var (a, rgb) = baseColor.Value;
+                    color = rgb.WithA((byte)a);
+                }
             }
             else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType) && isThreeArgs)
             {
@@ -274,28 +275,32 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Extracts RGB values from uint hex argument via rgb.
+        ///     Extracts RGB values from uint hex argument via rgb, used for Byte3
         /// </summary>
-        private static (byte? alpha, JetRgbaColor)? GetColorFromHexColor(ICollection<ICSharpArgument> arguments)
+        private static (byte? alpha, JetRgbaColor)? GetColorFromHexColorRgb(ICollection<ICSharpArgument> arguments)
         {
-            var hex = GetArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            var hex = GetByte3ArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
             if (!hex.HasValue)
                 return null;
-            byte a = (byte)(hex >> 24);
             byte r = (byte)(hex >> 16);
             byte g = (byte)(hex >> 8);
             byte b = (byte)hex;
-            return (a, JetRgbaColor.FromRgb(r, g, b));
+            return (null, JetRgbaColor.FromRgb(r, g, b));
         }
         
         /// <summary>
-        ///     Extracts RGBA values from uint hex argument via rgba.
+        ///     Extracts RGBA values from uint hex argument via rgba, used for Byte4
         /// </summary>
         private static (byte? alpha, JetRgbaColor)? GetColorFromHexColorRgba(ICollection<ICSharpArgument> arguments)
         {
-            var hex = GetArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            // Checks for hex values 0xFF (eg. White) first then try 0x00 (eg. Black)
+            var hex = GetByte4ArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
             if (!hex.HasValue)
-                return null;
+            {
+                hex = GetByte3ArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+                if (!hex.HasValue)
+                    return null;
+            }
             byte a = (byte)hex;
             byte r = (byte)(hex >> 24);
             byte g = (byte)(hex >> 16);
@@ -364,9 +369,22 @@ namespace ReSharperPlugin.EntsPlugin
         
         /// <summary>
         ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
-        ///     clamped within a specific range (min, max).
+        ///     clamped within a specific range (min, max). Used for byte4 type.
         /// </summary>
-        private static uint? GetArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+        private static uint? GetByte4ArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
+            uint min, uint max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            if (constantValue == null || !constantValue.IsUinteger()) return null;
+            var value = (uint)constantValue.Value;
+            return value >= min && value <= max ? value : null;
+        }
+        
+        /// <summary>
+        ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max). Used for byte3 type.
+        /// </summary>
+        private static uint? GetByte3ArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
             uint min, uint max)
         {
             var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
