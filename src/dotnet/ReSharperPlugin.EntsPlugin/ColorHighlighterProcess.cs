@@ -44,16 +44,16 @@ namespace ReSharperPlugin.EntsPlugin
         {
             if (element is ITokenNode tokenNode && tokenNode.GetTokenType().IsWhitespace) return;
 
-            var colorInfo = CreateColorHighlightingInfo(element);
+            var colorInfo = CreateColorHighlightingInfo(element, myProviders);
             
             // If a valid color is found, add a highlight to the editor
             if (colorInfo != null)
                 consumer.AddHighlighting(colorInfo.Highlighting, colorInfo.Range);
         }
 
-        private HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element)
+        private HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
         {
-            var colorReference = GetColorReference(element);
+            var colorReference = GetColorReference(element, providers);
             var range = colorReference?.ColorConstantRange;
             return range?.IsValid() == true
                 ? new HighlightingInfo(range.Value, new ColorHintHighlighting(colorReference))
@@ -64,27 +64,33 @@ namespace ReSharperPlugin.EntsPlugin
         ///     Attempts to retrieve a color reference and ensures only one reference is returned (so there are no
         ///     multiple color icon displays).
         /// </summary>
-        private static IColorReference? GetColorReference(ITreeNode element)
+        private static IColorReference? GetColorReference(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
         {
             // Checks if an invocation expression (eg. `float4.Rgba(r, g, b, a)` or `Color.red`)
-            if (element is not IReferenceExpression 
-                {
-                    QualifierExpression: IReferenceExpression qualifier
-                } referenceExpression) return null;
+            var referenceExpression = element as IReferenceExpression;
+            if (referenceExpression?.QualifierExpression is IReferenceExpression qualifier)
+            {
+                var reference = ReferenceFromInvocation(qualifier, referenceExpression)
+                                ?? ReferenceFromProperty(qualifier, referenceExpression);
+                
+                if (reference != null)
+                    return reference;
+            }
+
+            // Fallback which checks additional providers only if no reference was found above
+            foreach (var provider in providers)
+            {
+                var reference = provider.GetColorReference(element);
+                if (reference != null)
+                    return reference;
+            }
             
-            var reference = ReferenceFromInvocation(qualifier, referenceExpression);
-            if (reference != null)
-                return reference;
-
-            if (reference != null)
-                return reference;
-
             return null;
         }
 
         /// <summary>
-        ///     Handles color references created via an invocation of the `float4.Rgba(r, g, b, a)` method.
-        ///     And `byte4.Rgba(r, g, b, a)` and `ushort4.Rgba(r, g, b, a)`.
+        ///     Handles color references created via an invocation. Eg. `float4.Rgba(r, g, b, a)`,
+        ///     `byte4.Rgba(r, g, b, a)` and `ushort4.Rgba(r, g, b, a)`.
         /// </summary>
         private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
             IReferenceExpression methodReferenceExpression)
@@ -230,6 +236,31 @@ namespace ReSharperPlugin.EntsPlugin
             var argumentList = invocationExpression.ArgumentList;
             return new ColorReference(colorElement, invocationExpression, argumentList, argumentList.GetDocumentRange());
         }
+        
+        /// <summary>
+        ///     Handles color references created from a predefined color property (eg. `Color.Red`).
+        /// </summary>
+        private static IColorReference? ReferenceFromProperty(IReferenceExpression qualifier,
+            IReferenceExpression colorQualifiedMemberExpression)
+        {
+            // Get the name of the referenced property (eg., "Red" in "Color.Red")
+            var name = colorQualifiedMemberExpression.Reference.GetName();
+
+            // Look up the color name in our predefined color list
+            var color = BrutalNamedColors.Get(name);
+            if (color == null) return null;
+
+            // Resolve the type of the qualifier (eg., "Color" in "Color.Red")
+            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
+            if (qualifierType == null) return null;
+
+            var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
+            if (!colorTypes.IsColorType(qualifierType)) return null;
+            
+            var colorElement = new ColorElement(color.Value, name);
+            return new ColorReference(colorElement, colorQualifiedMemberExpression,
+                colorQualifiedMemberExpression, colorQualifiedMemberExpression.NameIdentifier.GetDocumentRange());
+        }
 
         /// <summary>
         ///     Extracts RGBA values from float arguments via rgba (eg. `float4.Rgba(0.5f, 0.2f, 0.8f, 1f)`).
@@ -275,7 +306,7 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Extracts RGB values from uint hex argument via rgb, used for Byte3
+        ///     Extracts RGB values from uint hex argument via rgb using bit shifting, used for Byte3.
         /// </summary>
         private static (byte? alpha, JetRgbaColor)? GetColorFromHexColorRgb(ICollection<ICSharpArgument> arguments)
         {
@@ -289,7 +320,7 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Extracts RGBA values from uint hex argument via rgba, used for Byte4
+        ///     Extracts RGBA values from uint hex argument via rgba using bit shifting, used for Byte4.
         /// </summary>
         private static (byte? alpha, JetRgbaColor)? GetColorFromHexColorRgba(ICollection<ICSharpArgument> arguments)
         {

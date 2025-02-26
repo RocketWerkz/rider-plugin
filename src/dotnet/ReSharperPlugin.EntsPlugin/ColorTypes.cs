@@ -65,23 +65,20 @@ namespace ReSharperPlugin.EntsPlugin
         }
         
         /// <summary>
-        ///     Checks if `ColorFloat4Type` supports color properties (used for color name mappings?)
+        ///     Retrieves a property representing a color element from a given color type.
         /// </summary>
-        public bool IsColorTypeSupportingProperties([CanBeNull] ITypeElement typeElement)
-        {
-            return ColorFloat4Type != null && ColorFloat4Type.Equals(typeElement);
-        }
-        
-        // Temp method used for color name mappings
         public static Pair<ITypeElement, ITypeMember>? PropertyFromColorElement(ITypeElement qualifierType, IColorElement colorElement, IPsiModule module)
         {
+            // Get the color name from the RGB values of the color element
             var colorName = BrutalNamedColors.GetColorName(colorElement.RGBColor);
             if (string.IsNullOrEmpty(colorName))
                 return null;
 
+            // Retrieve the color type instance (assumed to be a Float4 type)
             var colorType = GetInstance(module).ColorFloat4Type;
             if (colorType == null || !colorType.Equals(qualifierType)) return null;
 
+            // Find the property that matches the color name
             var colorProperties = GetStaticColorProperties(colorType);
             var propertyTypeMember = colorProperties.FirstOrDefault(p => p.ShortName == colorName);
             if (propertyTypeMember == null) return null;
@@ -89,18 +86,23 @@ namespace ReSharperPlugin.EntsPlugin
             return Pair.Of(colorType, propertyTypeMember);
         }
 
-        // Temp method used for color name mappings
+        /// <summary>
+        ///     Retrieves all static properties from a given color type that represent color values.
+        /// </summary>
         private static IList<ITypeMember> GetStaticColorProperties(ITypeElement colorType)
         {
             var colorProperties = new LocalList<ITypeMember>();
 
+            // Iterate through all members of the color type
             foreach (var typeMember in colorType.GetMembers())
             {
                 if (!typeMember.IsStatic) continue;
 
+                // Check if the member is a property or field
                 var typeOwner = typeMember as ITypeOwner;
                 if (typeOwner is IProperty || typeOwner is IField)
                 {
+                    // Ensure the member's type matches the color type
                     var declaredType = typeOwner.Type as IDeclaredType;
                     if (declaredType != null && colorType.Equals(declaredType.GetTypeElement()))
                     {

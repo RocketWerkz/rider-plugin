@@ -21,6 +21,6 @@ namespace ReSharperPlugin.EntsPlugin
         public static readonly IClrTypeName Ushort3 = new ClrTypeName("Brutal.ushort3");
         public static readonly IClrTypeName Ushort4 = new ClrTypeName("Brutal.ushort4");
         
-        public static readonly IClrTypeName Color = new ClrTypeName("Brutal.Color");
+        public static readonly IClrTypeName Color = new ClrTypeName("Brutal.Maths.Color.Color");
     }
 }
