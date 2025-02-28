@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using JetBrains.Metadata.Reader.API;
 using JetBrains.Metadata.Reader.Impl;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     public static class KnownTypes

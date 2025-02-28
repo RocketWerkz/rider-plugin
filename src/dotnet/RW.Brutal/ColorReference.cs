@@ -7,7 +7,7 @@ using JetBrains.ReSharper.Psi.CSharp;
 using JetBrains.ReSharper.Psi.CSharp.Tree;
 using JetBrains.ReSharper.Psi.Tree;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     /// <summary>
     ///     Responsible for handling and manipulating color references in a codebase, such as RGB(A) constructor

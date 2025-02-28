@@ -2,7 +2,7 @@
 using JetBrains.ReSharper.Psi.Colors;
 using JetBrains.ReSharper.Psi.Tree;
 
-namespace ReSharperPlugin.EntsPlugin;
+namespace RW.Brutal;
 
 public interface IColorReferenceProvider
 {

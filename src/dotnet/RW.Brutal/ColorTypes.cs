@@ -6,7 +6,7 @@ using JetBrains.ReSharper.Psi.Colors;
 using JetBrains.ReSharper.Psi.Modules;
 using JetBrains.Util;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     /// <summary>
     /// Helps manage and cache color-related type elements.

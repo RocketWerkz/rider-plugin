@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     internal static class ContentPathMethods
     {

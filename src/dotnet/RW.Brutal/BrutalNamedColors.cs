@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using JetBrains.ReSharper.Psi.Colors;
 using JetBrains.Util.Media;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     /// <summary>
     ///     Responsible for mapping color names (eg. "Color.Red", "Color. Blue") to ARGB values and vice versa. Uses a

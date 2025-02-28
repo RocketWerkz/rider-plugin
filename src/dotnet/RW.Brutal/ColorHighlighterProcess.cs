@@ -15,7 +15,7 @@ using JetBrains.Util.Media;
 
 #nullable enable
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     /// <summary>
     /// `CSharpIncrementalDaemonStageProcessBase` is a base class for analyzing C# code in small chunks (incremental

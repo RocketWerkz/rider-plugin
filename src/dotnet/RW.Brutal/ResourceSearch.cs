@@ -24,9 +24,9 @@ using JetBrains.TextControl;
 using JetBrains.UI.Icons;
 using JetBrains.UI.RichText;
 using JetBrains.Util;
-using ReSharperPlugin.EntsPlugin.Completions;
+using RW.Brutal.Completions;
 
-namespace ReSharperPlugin.EntsPlugin;
+namespace RW.Brutal;
 
 [Language(typeof(CSharpLanguage))]
 public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContext>

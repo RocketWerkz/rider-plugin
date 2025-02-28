@@ -9,7 +9,7 @@ using JetBrains.ReSharper.Psi.CSharp;
 using JetBrains.ReSharper.Psi.CSharp.Tree;
 using JetBrains.ReSharper.Psi.Tree;
 
-namespace ReSharperPlugin.EntsPlugin
+namespace RW.Brutal
 {
     // `Instantiation.DemandAnyThreadSafe` specifies that this daemon stage can be instantiated in a thread-safe manner.
     // `CSharpDaemonStageBase` is a daemon stage specifically for analyzing C# files.

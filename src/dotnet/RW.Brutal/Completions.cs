@@ -7,7 +7,7 @@ using JetBrains.ReSharper.Psi.CSharp.Util.Literals;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.Util;
 
-namespace ReSharperPlugin.EntsPlugin.Completions
+namespace RW.Brutal.Completions
 {
     static class CompletionExtensions
     {
