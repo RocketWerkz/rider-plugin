@@ -17,6 +17,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'ReSharperPlugin.test'
+rootProject.name = 'RW.Brutal'
 
 include ':protocol'

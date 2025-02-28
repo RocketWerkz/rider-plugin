@@ -1,4 +1,4 @@
-$PluginId = "ReSharperPlugin.test"
+$PluginId = "RW.Brutal"
 $SolutionPath = "$PSScriptRoot\ReSharperPlugin.test.sln"
 $SourceBasePath = "$PSScriptRoot\src\dotnet"
 

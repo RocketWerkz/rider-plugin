@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>ReSharperPlugin.EntsPlugin</AssemblyName>
+    <AssemblyName>RW.Brutal</AssemblyName>
     <RootNamespace>$(AssemblyName)</RootNamespace>
     <IsPackable>false</IsPackable>
     <DefineConstants>$(DefineConstants);RIDER</DefineConstants>
