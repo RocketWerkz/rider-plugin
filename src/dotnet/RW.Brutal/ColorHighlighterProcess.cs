@@ -18,8 +18,8 @@ using JetBrains.Util.Media;
 namespace RW.Brutal
 {
     /// <summary>
-    /// `CSharpIncrementalDaemonStageProcessBase` is a base class for analyzing C# code in small chunks (incremental
-    /// processing). Highlights color-related expressions (eg. `float4.Rgba(r, g, b, a`) in the editor.
+    ///     `CSharpIncrementalDaemonStageProcessBase` is a base class for analyzing C# code in small chunks (incremental
+    ///     processing). Highlights color-related expressions (eg. `float4.Rgba(r, g, b, a`) in the editor.
     /// </summary>
     public class ColorHighlighterProcess : CSharpIncrementalDaemonStageProcessBase
     {
@@ -292,7 +292,13 @@ namespace RW.Brutal
         }
         
         /// <summary>
-        ///     Extracts RGBA values from ushort arguments via rgba (eg. `ushort4.Rgba(r, g, b, a)`).
+        ///     Extracts RGBA values from ushort arguments via rgba (eg. `ushort4.Rgba(r, g, b, a)`) and normalizes
+        ///     them from the ushort range (0-65535) to the byte range (0-255). If ushort is directly cast to a byte,
+        ///     it causes precision loss by truncating higher values. This incorrectly converts mid-range greys to
+        ///     completely white. Eg. Incorrect conversion, turns grey (0.5, 0.5, 0.5) into white (1, 1, 1):
+        ///         (byte)0x7FFF == (byte)32767 == 255
+        ///     The correct proper conversion avoids this by scaling (this preserves the grey correctly):
+        ///         (0x7FFF * 255 / 65535) == 127
         /// </summary>
         private static (ushort? alpha, JetRgbaColor)? GetColorFromUshortRgba(ICollection<ICSharpArgument> arguments)
         {
@@ -302,7 +308,12 @@ namespace RW.Brutal
             var a = GetArgumentAsUshortConstant(arguments, "a", 0, ushort.MaxValue);
             if (!r.HasValue || !g.HasValue || !b.HasValue)
                 return null;
-            return (a, JetRgbaColor.FromRgb((byte)r.Value, (byte)g.Value, (byte)b.Value));
+            
+            var byteR = (byte)(r.Value * 255 / ushort.MaxValue);
+            var byteG = (byte)(g.Value * 255 / ushort.MaxValue);
+            var byteB = (byte)(b.Value * 255 / ushort.MaxValue);
+            
+            return (a, JetRgbaColor.FromRgb(byteR, byteG, byteB));
         }
         
         /// <summary>

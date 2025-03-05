@@ -9,7 +9,7 @@ using JetBrains.Util;
 namespace RW.Brutal
 {
     /// <summary>
-    /// Helps manage and cache color-related type elements.
+    ///     Helps manage and cache color-related type elements.
     /// </summary>
     public class ColorTypes
     {
@@ -39,6 +39,7 @@ namespace RW.Brutal
             ColorUshort4Type = cache.GetTypeElementByCLRName(KnownTypes.Ushort4);
             
             ColorType = cache.GetTypeElementByCLRName(KnownTypes.Color);
+            ColorPresetType = cache.GetTypeElementByCLRName(KnownTypes.ColorPreset);
         }
 
         // Naming was previously references to color-related type `UnityEngine.Color` and `UnityEngine.Color32` only
@@ -49,6 +50,7 @@ namespace RW.Brutal
         [CanBeNull] public ITypeElement ColorUshort3Type { get; }
         [CanBeNull] public ITypeElement ColorUshort4Type { get; }
         [CanBeNull] public ITypeElement ColorType { get; }
+        [CanBeNull] public ITypeElement ColorPresetType { get; }
 
         /// <summary>
         ///     Checks if `typeElement` is any of the types above.
@@ -61,7 +63,8 @@ namespace RW.Brutal
                    || (ColorByte4Type != null && ColorByte4Type.Equals(typeElement))
                    || (ColorUshort3Type != null && ColorUshort3Type.Equals(typeElement))
                    || (ColorUshort4Type != null && ColorUshort4Type.Equals(typeElement))
-                   || (ColorType != null && ColorType.Equals(typeElement));
+                   || (ColorType != null && ColorType.Equals(typeElement))
+                   || (ColorPresetType != null && ColorPresetType.Equals(typeElement));
         }
         
         /// <summary>

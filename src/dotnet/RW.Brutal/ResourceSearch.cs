@@ -24,29 +24,33 @@ using JetBrains.TextControl;
 using JetBrains.UI.Icons;
 using JetBrains.UI.RichText;
 using JetBrains.Util;
-using RW.Brutal.Completions;
 
 namespace RW.Brutal;
 
 [Language(typeof(CSharpLanguage))]
 public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContext>
 {
-    private String Prefix = "Content/";
+    private const string Prefix = "Content/";
+    
     protected override bool IsAvailable(CSharpCodeCompletionContext context)
     {
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
     }
     
+    // In Godot this is broken down into different file extension types which we ignore for now
     private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType;
     
+    /// <summary>
+    ///     Suggests full paths to resource files based on the string completion's context.
+    /// </summary>
     private IEnumerable<CompletionItem> FullPathCompletions(CSharpCodeCompletionContext context, VirtualFileSystemPath searchPath)
     {
         if (context.GetResourceType() is not { } resourceType)
-            return Enumerable.Empty<CompletionItem>();
+            return [];
 
         ourFileExtensionsByType.TryGetValue(resourceType, out var matchingFileExtensions);
         return matchingFileExtensions is null 
-            ? Enumerable.Empty<CompletionItem>()
+            ? []
             : ResourceFiles(searchPath, matchingFileExtensions);
     }
     
@@ -54,9 +58,7 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
     {
         var searchDir = SearchDir(path);
         if (searchDir is null)
-        {
-            return Enumerable.Empty<CompletionItem>();
-        }
+            return [];
 
         return
             from p in ResourceFilesInner(searchDir, extensions)
@@ -66,23 +68,17 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
     private static IEnumerable<VirtualFileSystemPath> ResourceFilesInner(VirtualFileSystemPath path, IList<string> extensions)
     {
         if (ShouldIgnore(path))
-        {
-            return Enumerable.Empty<VirtualFileSystemPath>();
-        }
+            return [];
 
         if (path.ExistsFile && extensions.Any(ext => ext.Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)))
-        {
-            return new[] { path };
-        }
+            return [path];
 
         if (path.ExistsDirectory)
-        {
             return
                 path.GetChildren()
                     .SelectMany(child => ResourceFilesInner(child.GetAbsolutePath(), extensions));
-        }
 
-        return Enumerable.Empty<VirtualFileSystemPath>();
+        return [];
     }
     
     private static bool ShouldIgnore(VirtualFileSystemPath path)
@@ -91,7 +87,6 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         // - dotfiles or directories starting with "."
         // - iml - some subsidiary file, which Rider creates
         return path.Name.StartsWith(".")
-               || "import".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
                || "iml".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
                || path.ExtensionNoDot.Equals("csproj", StringComparison.OrdinalIgnoreCase)
                || path.ExtensionNoDot.Equals("sln", StringComparison.OrdinalIgnoreCase);
@@ -128,9 +123,7 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
 
             var originalString = string.Empty;
             if (stringLiteral.ConstantValue.AsString() is { } os)
-            {
                 originalString = os;
-            }
             
             // Ensure relative path starts from "Content/" prefix
             var relativePathString = string.Empty;
@@ -145,23 +138,17 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
 
             // If path leads outside the "Content" folder, skip completions
             if (!contentPath.IsPrefixOf(searchPath))
-            {
                 return false;
-            }
 
             if (originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
-            {
                 completions.AddRange(OneLevelPathCompletions(searchPath));
-            }
                 
             // Create ResourcePathItem for each completion
             var items = completions.Distinct().Select(completion =>
                 new ResourcePathItem(contentPath, completion, context.CompletionRanges)).ToList();
             
             foreach (var item in items)
-            {
                 collector.Add(item);
-            }
                 
             if (!originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) && completions.Any())
             {
@@ -181,13 +168,16 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         //);
     }
     
+    /// <summary>
+    ///     Suggests child files or directories of the given path with the aim of completing a path to any existing
+    ///     regular file. If path is an existing regular file, the path is complete, so no suggestions are returned.
+    ///     Otherwise, lists the entries of the last directory in the path.
+    /// </summary>
     private IEnumerable<CompletionItem> OneLevelPathCompletions(VirtualFileSystemPath path)
     {
         var searchDir = SearchDir(path);
         if (searchDir is null)
-        {
             return Enumerable.Empty<CompletionItem>();
-        }
 
         return
             from child in searchDir.GetChildren()
