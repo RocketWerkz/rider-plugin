@@ -1,8 +1,8 @@
-# test for Rider and ReSharper
+# Installing locally
 
-[![Rider](https://img.shields.io/jetbrains/plugin/v/RIDER_PLUGIN_ID.svg?label=Rider&colorB=0A7BBB&style=for-the-badge&logo=rider)](https://plugins.jetbrains.com/plugin/RIDER_PLUGIN_ID)
-[![ReSharper](https://img.shields.io/jetbrains/plugin/v/RESHARPER_PLUGIN_ID.svg?label=ReSharper&colorB=0A7BBB&style=for-the-badge&logo=resharper)](https://plugins.jetbrains.com/plugin/RESHARPER_PLUGIN_ID)
+From the release page, download the latest release zip and install it using the `Install plugin from disk` option in the settings.
 
+Detailed instructions can be found here: https://www.jetbrains.com/help/idea/managing-plugins.html#install_plugin_from_disk
 
 # Info
 
