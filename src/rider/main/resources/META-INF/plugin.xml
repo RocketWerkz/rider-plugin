@@ -6,8 +6,12 @@
   <idea-version since-build="_PLACEHOLDER_" until-build="_PLACEHOLDER_" />
   <depends>com.intellij.modules.rider</depends>
 
+  <resource-bundle>messages.CognitiveComplexityBundle</resource-bundle>
+
+  <extensions defaultExtensionNs="com.intellij"/>
+
   <description>
-<![CDATA[
+    <![CDATA[
 <p>Current Features: Auto Complete Content Path and Color Icon Display</p>
 ]]>
   </description>

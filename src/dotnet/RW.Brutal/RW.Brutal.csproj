@@ -1,4 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project>
+
+  <PropertyGroup>
+    <LanguageTargets>$(MSBuildToolsPath)\Microsoft.CSharp.targets</LanguageTargets>
+  </PropertyGroup>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
@@ -13,11 +19,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\dependencies.json" PackagePath="" Pack="true" Visible="false" />
-    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).dll" PackagePath="dotFiles" Pack="true" Visible="false" />
-    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).pdb" PackagePath="dotFiles" Pack="true" Visible="false" />
-
-    <!-- TODO: add additional assemblies -->
+    <Compile Remove="Rider\**\*" />
+    <None Remove="Rider\**\*" />
+    <EmbeddedResource Remove="Rider\**\*" />
+    <Content Remove="Rider\**\*" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).dll" PackagePath="dotFiles" Pack="true" />
+    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).pdb" PackagePath="dotFiles" Pack="true" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
 </Project>

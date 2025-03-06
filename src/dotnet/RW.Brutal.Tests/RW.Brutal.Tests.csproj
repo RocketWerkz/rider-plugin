@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="GitHubActionsTestLogger" Version="2.0.1" />
-    <PackageReference Include="JetBrains.ReSharper.SDK.Tests" Version="$(SdkVersion)" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
+    <PackageReference Include="JetBrains.Rider.SDK.Tests" Version="$(SdkVersion)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
   </ItemGroup>
 
@@ -19,6 +19,10 @@
   <ItemGroup>
     <Compile Remove="test/**/*" />
     <None Include="test/**/*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="mono/*.dll" CopyLocal="true" />
   </ItemGroup>
 
 </Project>
