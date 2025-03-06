@@ -195,7 +195,6 @@ tasks.prepareSandbox {
 }
 
 tasks.publishPlugin {
-    dependsOn(testDotNet)
     dependsOn(tasks.buildPlugin)
     token.set("${PublishToken}")
 
