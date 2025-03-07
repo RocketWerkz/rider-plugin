@@ -19,6 +19,5 @@ namespace RW.Brutal
         public static readonly IClrTypeName Ushort4 = new ClrTypeName("Brutal.ushort4");
         
         public static readonly IClrTypeName Color = new ClrTypeName("Brutal.Maths.Color.Color");
-        public static readonly IClrTypeName ColorPreset = new ClrTypeName("Brutal.Maths.Color.Color+ColorPreset");
     }
 }

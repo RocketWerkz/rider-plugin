@@ -37,7 +37,6 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
     }
     
-    // In Godot this is broken down into different file extension types which we ignore for now
     private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType;
     
     /// <summary>
