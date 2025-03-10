@@ -1,6 +1,6 @@
 <idea-plugin require-restart="true">
-  <id>com.jetbrains.rider.plugins.RW.Brutal</id>
-  <name>BRUTAL Plugin</name>
+  <id>RW.Brutal</id>
+  <name>BRUTAL</name>
   <version>_PLACEHOLDER_</version>
   <vendor url="https://project-url">Rocketwerkz Enterprise</vendor>
   <idea-version since-build="_PLACEHOLDER_" until-build="_PLACEHOLDER_" />
@@ -12,7 +12,10 @@
 
   <description>
     <![CDATA[
-<p>Current Features: Auto Complete Content Path and Color Icon Display</p>
+<p>An Internal RocketWerkz plugin for the BRUTAL game engine integration on Rider. 
+Allowing for:
+- Path resource search and completion
+- Colour Wheel on internal classes and methods</p>
 ]]>
   </description>
 

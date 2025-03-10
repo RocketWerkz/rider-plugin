@@ -4,7 +4,7 @@
     <SdkVersion>2024.3.6</SdkVersion>
 
     <Title>RW.Brutal</Title>
-    <Description>An Inernal RW Brutal Plugin</Description>
+    <Description>An Internal RocketWerkz Plugin for better utilisation of the Brutal Engine</Description>
 
     <Authors>RocketWerkz</Authors>
     <Copyright>Copyright $([System.DateTime]::Now.Year) RocketWerkz ltd.</Copyright>
