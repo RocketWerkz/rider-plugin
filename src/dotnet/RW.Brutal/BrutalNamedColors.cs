@@ -28,7 +28,7 @@ namespace RW.Brutal
         private static readonly Dictionary<string, (float, float, float)> NamedColorsFloat =
             new()
             {
-                { "Grey", (0.5f, 0.5f, 0.5f) }
+                { "Gray", (0.5f, 0.5f, 0.5f) }
             };
         
         private static readonly Dictionary<string, uint> NamedColorsByte4Hex =

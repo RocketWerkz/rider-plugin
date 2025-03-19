@@ -89,8 +89,8 @@ namespace RW.Brutal
         }
 
         /// <summary>
-        ///     Handles color references created via an invocation. Eg. `float4.Rgba(r, g, b, a)`,
-        ///     `byte4.Rgba(r, g, b, a)` and `ushort4.Rgba(r, g, b, a)`.
+        ///     Handles color references created via an invocation. Eg. `float4.Rgb(r, g, b)`,
+        ///     `byte4.Rgb(r, g, b)` and `ushort4.Rgb(r, g, b)`.
         /// </summary>
         private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
             IReferenceExpression methodReferenceExpression)
@@ -107,14 +107,15 @@ namespace RW.Brutal
             // Check # of arguments so correct method name and color type is used
             var arguments = invocationExpression.Arguments;
             bool isOneArg = arguments.Count == 1;
+            bool isTwoArgs = arguments.Count == 2;
             bool isThreeArgs = arguments.Count == 3;
             bool isFourArgs = arguments.Count == 4;
-            if (!isOneArg && !isThreeArgs && !isFourArgs)
+            if (!isOneArg && !isTwoArgs && !isThreeArgs && !isFourArgs)
                 return null;
 
             // Unwind the argument values into a string for logging purposes
-            var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
-            Log.Root.Error($"argValues: {argValues}");
+            // var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
+            // Log.Root.Error($"argValues: {argValues}");
 
             var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
             if (qualifierType is null) return null;
@@ -125,71 +126,105 @@ namespace RW.Brutal
             // Validate method name based on color type and argument count
             if (isOneArg)
             {
+                // Handle float3, float4, ushort4 Grayscale
+                if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                else if (colorTypes.ColorFloat3Type is not null && colorTypes.ColorFloat3Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                
                 // byte3 and byte4 both use "HexColor" when given one argument
-                if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
-                {
+                else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
                     if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
-                }
                 else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
-                {
                     if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
-                }
             }
-            else if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
+            else if (isTwoArgs)
             {
-                // Float4Type always uses "Rgba", even with three arguments
-                if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
-            }
-            else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
-            {
-                // Ushort4Type always uses "Rgba", even with three arguments
-                if (!string.Equals(name, "Rgba", StringComparison.Ordinal)) return null;
+                if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
             }
             else
             {
                 // Other types follow Rgb (three args) and Rgba (four args) convention
                 if (!((isThreeArgs && string.Equals(name, "Rgb", StringComparison.Ordinal)) ||
-                      (isFourArgs && string.Equals(name, "Rgba", StringComparison.Ordinal))))
-                {
-                    return null;
-                }
+                      (isFourArgs && string.Equals(name, "Rgba", StringComparison.Ordinal)))) return null;
             }
             
             // Checks if the type matches any of the known color types
             JetRgbaColor? color = null;
             
-            // Float4Type supports both 3 & 4 arguments and always uses "Rgba" method name
+            // Float4 supports 1 to 4 arguments + "Rgb", "Rgba" and "Grayscale" method names
             if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
             {
-                // Attempt to parse color from floating-point RGBA
-                var baseColor = GetColorFromFloatRgba(arguments);
-                if (baseColor is null) return null;
+                // Handle Grayscale with a single arg with full opacity (alpha is always 1)
+                if (isOneArg)
+                {
+                    var baseColor = GetColorFromFloatGrayscale(arguments);
+                    if (baseColor is null) return null;
+                    var (_, rgb) = baseColor.Value;
+                    color = rgb.WithA(255);
+                }
+                // Handle Grayscale with two args
+                else if (isTwoArgs)
+                {
+                    var baseColor = GetColorFromFloatGrayscale(arguments);
+                    if (baseColor is null) return null;
+                    var (a, rgb) = baseColor.Value;
+                    color = rgb.WithA((byte)(255.0 * a.Value));
+                }
+                else
+                {
+                    // Attempt to parse color from floating-point RGBA
+                    var baseColor = GetColorFromFloatRgba(arguments);
+                    if (baseColor is null) return null;
 
-                // If an alpha value exists, adjust the color's transparency accordingly, otherwise default to full
-                // opacity (1)
-                var (a, rgb) = baseColor.Value;
-                color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(255.0 * a.Value));
+                    // If an alpha value exists, adjust the color's transparency accordingly, otherwise default to full
+                    // opacity (1)
+                    var (a, rgb) = baseColor.Value;
+                    color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(255.0 * a.Value));
+                }
             }
-            else if (colorTypes.ColorFloat3Type is not null && colorTypes.ColorFloat3Type.Equals(qualifierType) && isThreeArgs)
-            {
-                var baseColor = GetColorFromFloatRgba(arguments);
-                if (baseColor is null) return null;
             
-                // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
+            else if (colorTypes.ColorFloat3Type is not null && colorTypes.ColorFloat3Type.Equals(qualifierType))
+            {
+                // Handle Grayscale with a single arg with full opacity default (alpha is always 1)
+                // Clear shows up as a black icon
+                var baseColor = isOneArg ? GetColorFromFloatGrayscale(arguments) : GetColorFromFloatRgba(arguments);
+                if (baseColor is null) return null;
                 var (_, rgb) = baseColor.Value;
                 color = rgb.WithA(255);
             }
+            
             else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
             {
-                (byte? alpha, JetRgbaColor)? baseColor = null;
-                if (isFourArgs)
-                    baseColor = GetColorFromByteRgba(arguments);
-                else if (isOneArg)
-                    baseColor = GetColorFromHexColorRgba(arguments);
-                if (baseColor is null) return null;
-                var (a, hex) = baseColor.Value;
-                color = hex.WithA((byte)a);
+                if (isOneArg)
+                {
+                    var baseColor = GetColorFromHexColorRgba(arguments);
+                    if (baseColor is null) return null;
+                    var (a, hex) = baseColor.Value;
+                    color = hex.WithA((byte)a);
+                }
+                else
+                {
+                    var baseColor = GetColorFromByteRgba(arguments);
+                    if (baseColor is null) return null;
+                    if (isThreeArgs)
+                    {
+                        var (_, rgb) = baseColor.Value;
+                        color = rgb.WithA(255);
+                    }
+                    else if (isFourArgs)
+                    {
+                        var (a, rgb) = baseColor.Value;
+                        color = rgb.WithA((byte)a);
+                    }
+                }
             }
+            
             else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
             {
                 (byte? alpha, JetRgbaColor)? baseColor = null;
@@ -203,23 +238,44 @@ namespace RW.Brutal
                 var (_, rgb) = baseColor.Value;
                 color = rgb.WithA(255);
             }
+            
             else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
             {
-                var baseColor = GetColorFromUshortRgba(arguments);
-                if (baseColor is null) return null;
-                
-                // If we only have three args default set the alpha value to 255 (full opacity)
-                if (isThreeArgs)
+                // Handle Grayscale with a single arg with full opacity (alpha is always 0xFFFF)
+                if (isOneArg)
                 {
+                    var baseColor = GetColorFromUshortGrayscale(arguments);
+                    if (baseColor is null) return null;
                     var (_, rgb) = baseColor.Value;
                     color = rgb.WithA(255);
                 }
-                else if (isFourArgs)
+                // Handle Grayscale with two args
+                else if (isTwoArgs)
                 {
+                    var baseColor = GetColorFromUshortGrayscale(arguments);
+                    if (baseColor is null) return null;
                     var (a, rgb) = baseColor.Value;
                     color = rgb.WithA((byte)a);
                 }
+                else
+                {
+                    var baseColor = GetColorFromUshortRgba(arguments);
+                    if (baseColor is null) return null;
+
+                    // If we only have three args default set the alpha value to 255 (full opacity)
+                    if (isThreeArgs)
+                    {
+                        var (_, rgb) = baseColor.Value;
+                        color = rgb.WithA(255);
+                    }
+                    else if (isFourArgs)
+                    {
+                        var (a, rgb) = baseColor.Value;
+                        color = rgb.WithA((byte)a);
+                    }
+                }
             }
+            
             else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType) && isThreeArgs)
             {
                 var baseColor = GetColorFromUshortRgba(arguments); 
@@ -278,6 +334,23 @@ namespace RW.Brutal
         }
         
         /// <summary>
+        ///     Extracts RGBA values from one or two float arguments via Grayscale.
+        ///     Eg. `float4.Grayscale(0, 0)` for Clear.
+        ///     Eg. `float4.Grayscale(0)` for Black.
+        /// </summary>
+        private static (float? alpha, JetRgbaColor)? GetColorFromFloatGrayscale(ICollection<ICSharpArgument> arguments)
+        {
+            var r = GetArgumentAsFloatConstant(arguments, "v", 0, 1);
+            var g = GetArgumentAsFloatConstant(arguments, "v", 0, 1);
+            var b = GetArgumentAsFloatConstant(arguments, "v", 0, 1);
+            var a = GetArgumentAsFloatConstant(arguments, "a", 0, 1);
+            if (!r.HasValue || !g.HasValue || !b.HasValue)
+                return null;
+
+            return (a, JetRgbaColor.FromRgb((byte)(255.0 * r.Value), (byte)(255.0 * g.Value), (byte)(255.0 * b.Value)));
+        }
+        
+        /// <summary>
         ///     Extracts RGBA values from byte arguments via rgba (eg. `byte4.Rgba(r, g, b, a)`).
         /// </summary>
         private static (byte? alpha, JetRgbaColor)? GetColorFromByteRgba(ICollection<ICSharpArgument> arguments)
@@ -305,6 +378,26 @@ namespace RW.Brutal
             var r = GetArgumentAsUshortConstant(arguments, "r", 0, ushort.MaxValue);
             var g = GetArgumentAsUshortConstant(arguments, "g", 0, ushort.MaxValue);
             var b = GetArgumentAsUshortConstant(arguments, "b", 0, ushort.MaxValue);
+            var a = GetArgumentAsUshortConstant(arguments, "a", 0, ushort.MaxValue);
+            if (!r.HasValue || !g.HasValue || !b.HasValue)
+                return null;
+            
+            var byteR = (byte)(r.Value * 255 / ushort.MaxValue);
+            var byteG = (byte)(g.Value * 255 / ushort.MaxValue);
+            var byteB = (byte)(b.Value * 255 / ushort.MaxValue);
+            
+            return (a, JetRgbaColor.FromRgb(byteR, byteG, byteB));
+        }
+        
+        /// <summary>
+        ///     Extracts RGBA values from one or two ushort arguments via Grayscale (Eg. `ushort4.Grayscale(0, 0)` for
+        ///     Clear) and normalizes them from the ushort range (0-65535) to the byte range (0-255).
+        /// </summary>
+        private static (ushort? alpha, JetRgbaColor)? GetColorFromUshortGrayscale(ICollection<ICSharpArgument> arguments)
+        {
+            var r = GetArgumentAsUshortConstant(arguments, "v", 0, ushort.MaxValue);
+            var g = GetArgumentAsUshortConstant(arguments, "v", 0, ushort.MaxValue);
+            var b = GetArgumentAsUshortConstant(arguments, "v", 0, ushort.MaxValue);
             var a = GetArgumentAsUshortConstant(arguments, "a", 0, ushort.MaxValue);
             if (!r.HasValue || !g.HasValue || !b.HasValue)
                 return null;

@@ -223,6 +223,7 @@ sealed class ResourcePathItem : TextLookupItemBase
         if (!relativePath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
             relativePath = $"Content/{relativePath.TrimStart('.', '/')}";
         
+        // Must start with `"Content/"` instead of `"Content` as the second quotation mark (closing quote) is needed
         Text = $"\"{relativePath}\"";
     }
 
