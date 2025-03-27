@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using JetBrains;
 using JetBrains.Application.Settings;
@@ -126,25 +127,31 @@ namespace RW.Brutal
             // Validate method name based on color type and argument count
             if (isOneArg)
             {
-                // Handle float3, float4, ushort4 Grayscale
+                // Handle float3, float4, ushort4, ushort3 "Grayscale"
                 if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
                     if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
                 else if (colorTypes.ColorFloat3Type is not null && colorTypes.ColorFloat3Type.Equals(qualifierType))
                     if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
                 else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
                     if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
                 
-                // byte3 and byte4 both use "HexColor" when given one argument
+                // byte3 and byte4 can both use "HexColor" and "Grayscale" when given one argument
                 else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
-                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
+                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal) ||
+                        !string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
                 else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
-                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal)) return null;
+                    if (!string.Equals(name, "HexColor", StringComparison.Ordinal) ||
+                        !string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
             }
             else if (isTwoArgs)
             {
                 if (colorTypes.ColorFloat4Type is not null && colorTypes.ColorFloat4Type.Equals(qualifierType))
                     if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
                 else if (colorTypes.ColorUshort4Type is not null && colorTypes.ColorUshort4Type.Equals(qualifierType))
+                    if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
+                else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
                     if (!string.Equals(name, "Grayscale", StringComparison.Ordinal)) return null;
             }
             else
@@ -201,12 +208,33 @@ namespace RW.Brutal
             
             else if (colorTypes.ColorByte4Type is not null && colorTypes.ColorByte4Type.Equals(qualifierType))
             {
+                // Handle HexColor and Grayscale
                 if (isOneArg)
                 {
-                    var baseColor = GetColorFromHexColorRgba(arguments);
+                    (byte? alpha, JetRgbaColor)? baseColor;
+                    if (string.Equals(name, "HexColor", StringComparison.Ordinal))
+                    {
+                        // Check if the "hex" argument is a valid string or a uint
+                        baseColor = GetColorFromHexStringRgba(arguments) ?? GetColorFromHexColorRgba(arguments);
+                        if (baseColor is null) return null;
+                        var (a, hex) = baseColor.Value;
+                        color = hex.WithA((byte)a);
+                    }
+                    else if(string.Equals(name, "Grayscale", StringComparison.Ordinal))
+                    {
+                        baseColor = GetColorFromByteGrayscale(arguments);
+                        if (baseColor is null) return null;
+                        var (_, rgb) = baseColor.Value;
+                        color = rgb.WithA(255);
+                    }
+                }
+                // Handle Grayscale with two args
+                else if (isTwoArgs)
+                {
+                    var baseColor = GetColorFromByteGrayscale(arguments);
                     if (baseColor is null) return null;
-                    var (a, hex) = baseColor.Value;
-                    color = hex.WithA((byte)a);
+                    var (a, rgb) = baseColor.Value;
+                    color = rgb.WithA((byte)a);
                 }
                 else
                 {
@@ -228,12 +256,19 @@ namespace RW.Brutal
             else if (colorTypes.ColorByte3Type is not null && colorTypes.ColorByte3Type.Equals(qualifierType))
             {
                 (byte? alpha, JetRgbaColor)? baseColor = null;
-                if (isThreeArgs)
+                // Handle HexColor and Grayscale
+                if (isOneArg)
+                {
+                    if (string.Equals(name, "HexColor", StringComparison.Ordinal))
+                        // Check if the "hex" argument is a valid string or a uint
+                        baseColor = GetColorFromHexStringRgb(arguments) ?? GetColorFromHexColorRgb(arguments);
+                    else if (string.Equals(name, "Grayscale", StringComparison.Ordinal))
+                        baseColor = GetColorFromByteGrayscale(arguments);
+                }
+                else if (isThreeArgs)
                     baseColor = GetColorFromByteRgba(arguments);
-                else if (isOneArg)
-                    baseColor = GetColorFromHexColorRgb(arguments);
                 if (baseColor is null) return null;
-
+                
                 // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
                 var (_, rgb) = baseColor.Value;
                 color = rgb.WithA(255);
@@ -276,9 +311,10 @@ namespace RW.Brutal
                 }
             }
             
-            else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType) && isThreeArgs)
+            else if (colorTypes.ColorUshort3Type is not null && colorTypes.ColorUshort3Type.Equals(qualifierType))
             {
-                var baseColor = GetColorFromUshortRgba(arguments); 
+                // Handle Grayscale with a single arg with full opacity default alpha
+                var baseColor = isOneArg ? GetColorFromUshortGrayscale(arguments) : GetColorFromUshortRgba(arguments); 
                 if (baseColor is null) return null;
                 
                 // Ignore the alpha value since it doesn't exist and explicitly default set it to 255 (full opacity)
@@ -365,6 +401,22 @@ namespace RW.Brutal
         }
         
         /// <summary>
+        ///     Extracts RGBA values from byte arguments via Grayscale.
+        ///     Eg. `byte4.Grayscale(0, 0)` for Clear.
+        ///     Eg. `byte4.Grayscale(0)` for Black.
+        /// </summary>
+        private static (byte? alpha, JetRgbaColor)? GetColorFromByteGrayscale(ICollection<ICSharpArgument> arguments)
+        {
+            var r = GetArgumentAsByteConstant(arguments, "v", 0, 255);
+            var g = GetArgumentAsByteConstant(arguments, "v", 0, 255);
+            var b = GetArgumentAsByteConstant(arguments, "v", 0, 255);
+            var a = GetArgumentAsByteConstant(arguments, "a", 0, 255);
+            if (!r.HasValue || !g.HasValue || !b.HasValue)
+                return null;
+            return (a, JetRgbaColor.FromRgb(r.Value, g.Value, b.Value));
+        }
+        
+        /// <summary>
         ///     Extracts RGBA values from ushort arguments via rgba (eg. `ushort4.Rgba(r, g, b, a)`) and normalizes
         ///     them from the ushort range (0-65535) to the byte range (0-255). If ushort is directly cast to a byte,
         ///     it causes precision loss by truncating higher values. This incorrectly converts mid-range greys to
@@ -442,6 +494,39 @@ namespace RW.Brutal
             byte b = (byte)(hex >> 8);
             return (a, JetRgbaColor.FromRgb(r, g, b));
         }
+        
+        /// <summary>
+        ///     Extracts RGB values from uint hex string argument via rgb using bit shifting, used for Byte3.
+        /// </summary>
+        private static (byte? alpha, JetRgbaColor)? GetColorFromHexStringRgb(ICollection<ICSharpArgument> arguments)
+        {
+            // Check if argument is a valid hex string first
+            var hex = GetByte3StringArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            if (!hex.HasValue)
+                return null;
+            
+            byte r = (byte)(hex >> 16);
+            byte g = (byte)(hex >> 8);
+            byte b = (byte)hex;
+            return (null, JetRgbaColor.FromRgb(r, g, b));
+        }
+        
+        /// <summary>
+        ///     Extracts RGBA values from uint hex string argument via rgba using bit shifting, used for Byte4.
+        /// </summary>
+        private static (byte? alpha, JetRgbaColor)? GetColorFromHexStringRgba(ICollection<ICSharpArgument> arguments)
+        {
+            // Check if argument is a valid hex string first
+            var hex = GetByte4StringArgumentAsUintConstant(arguments, "hex", uint.MinValue, uint.MaxValue);
+            if (!hex.HasValue)
+                return null;
+            
+            byte a = (byte)hex;
+            byte r = (byte)(hex >> 24);
+            byte g = (byte)(hex >> 16);
+            byte b = (byte)(hex >> 8);
+            return (a, JetRgbaColor.FromRgb(r, g, b));
+        }
 
         private static float? GetArgumentAsFloatConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
             float min, float max)
@@ -453,7 +538,7 @@ namespace RW.Brutal
         /// <summary>
         ///     Validates and clamps float constants to a valid range.
         /// </summary>
-        public static float? ArgumentAsFloatConstant(float min, float max, IExpression? expression)
+        private static float? ArgumentAsFloatConstant(float min, float max, IExpression? expression)
         {
             if (expression == null) return null;
 
@@ -517,6 +602,32 @@ namespace RW.Brutal
         
         /// <summary>
         ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max). Used for byte4 type.
+        /// </summary>
+        private static uint? GetByte4StringArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments,
+            string parameterName, uint min, uint max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            if (constantValue == null) return null;
+            
+            // Check if argument is a valid hex string first
+            if (!constantValue.IsString(out var hexString)) 
+                return null;
+            
+            // Validate that hexString is exactly 10 characters long (0x + 10 hex digits) and that the first two
+            // characters are "0x".
+            if (hexString.Length != 10 || !hexString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            // Convert hex substring to uint
+            if (!uint.TryParse(hexString?.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexValue))
+                return null;
+            
+            return hexValue >= min && hexValue <= max ? hexValue : null;
+        }
+        
+        /// <summary>
+        ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
         ///     clamped within a specific range (min, max). Used for byte3 type.
         /// </summary>
         private static uint? GetByte3ArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments, string parameterName,
@@ -526,6 +637,32 @@ namespace RW.Brutal
             return constantValue != null && constantValue.IsInteger(out var value) && value >= min && value <= max
                 ? (uint)value
                 : null;
+        }
+        
+        /// <summary>
+        ///     Extracts a uint constant value from a specific argument in a collection of arguments. The value is
+        ///     clamped within a specific range (min, max). Used for byte3 type.
+        /// </summary>
+        private static uint? GetByte3StringArgumentAsUintConstant(IEnumerable<ICSharpArgument> arguments,
+            string parameterName, uint min, uint max)
+        {
+            var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
+            if (constantValue == null) return null;
+            
+            // Check if argument is a valid hex string first
+            if (!constantValue.IsString(out var hexString)) 
+                return null;
+            
+            // Validate that hexString is exactly 8 characters long (0x + 8 hex digits) and that the first two
+            // characters are "0x".
+            if (hexString.Length != 8 || !hexString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            // Convert hex substring to uint
+            if (!uint.TryParse(hexString?.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hexValue))
+                return null;
+            
+            return hexValue >= min && hexValue <= max ? hexValue : null;
         }
 
         /// <summary>
