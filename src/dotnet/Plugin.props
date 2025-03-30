@@ -1,20 +1,22 @@
 ﻿<Project>
 
   <PropertyGroup>
-    <!-- See https://www.nuget.org/packages/JetBrains.ReSharper.SDK -->
-    <!-- Keep in sync with ProductVersion in gradle.properties -->
-    <SdkVersion>2024.1.0</SdkVersion>
+    <SdkVersion>2024.3.6</SdkVersion>
 
-    <Title>RW.Internal.Brutal</Title>
-    <Description>An Inernal RW Brutal Plugin</Description>
+    <Title>RW.Brutal</Title>
+    <Description>An Internal RocketWerkz Plugin for better utilisation of the Brutal Engine</Description>
 
     <Authors>RocketWerkz</Authors>
     <Copyright>Copyright $([System.DateTime]::Now.Year) RocketWerkz ltd.</Copyright>
     <PackageTags>resharper plugin</PackageTags>
 
     <PackageProjectUrl></PackageProjectUrl>
-    <PackageLicenseUrl>https://rocketwerkz.com/</PackageLicenseUrl>
+    <PackageLicenseUrl>https://github.com/RocketWerkz/CC-BY-ND/blob/main/LICENSE</PackageLicenseUrl>
     <PackageIconUrl></PackageIconUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
 </Project>

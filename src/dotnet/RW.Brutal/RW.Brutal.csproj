@@ -1,0 +1,35 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <LanguageTargets>$(MSBuildToolsPath)\Microsoft.CSharp.targets</LanguageTargets>
+  </PropertyGroup>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <IsPackable>True</IsPackable>
+    <DefineConstants>$(DefineConstants);RESHARPER</DefineConstants>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JetBrains.ReSharper.SDK" Version="$(SdkVersion)" PrivateAssets="all" />
+    <PackageReference Include="Wave" Version="$(WaveVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Rider\**\*" />
+    <None Remove="Rider\**\*" />
+    <EmbeddedResource Remove="Rider\**\*" />
+    <Content Remove="Rider\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).dll" PackagePath="dotFiles" Pack="true" />
+    <Content Include="bin\$(AssemblyName)\$(Configuration)\$(AssemblyName).pdb" PackagePath="dotFiles" Pack="true" />
+  </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>

@@ -1,13 +1,11 @@
-using System.Collections.Generic;
 using JetBrains.Metadata.Reader.API;
 using JetBrains.ReSharper.Feature.Services.CSharp.CodeCompletion.Infrastructure;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.CSharp.Tree;
 using JetBrains.ReSharper.Psi.CSharp.Util.Literals;
 using JetBrains.ReSharper.Psi.Tree;
-using JetBrains.Util;
 
-namespace ReSharperPlugin.EntsPlugin.Completions
+namespace RW.Brutal
 {
     static class CompletionExtensions
     {
@@ -16,17 +14,6 @@ namespace ReSharperPlugin.EntsPlugin.Completions
                && nodeInFile.Parent is ICSharpLiteralExpression literalExpression
                && literalExpression.Literal.IsAnyStringLiteral()
                 ? literalExpression
-                : null;
-
-        public static IClrTypeName InvokedMethodContainingType(this IInvocationExpression invocation)
-            => invocation.Reference.Resolve().DeclaredElement is IMethod method
-               && method.ContainingType is ITypeElement type
-                ? type.GetClrName()
-                : null;
-
-        public static string InvokedMethodName(this IInvocationExpression invocation)
-            => invocation.Reference.Resolve().DeclaredElement is IMethod method
-                ? method.ShortName
                 : null;
 
         public static IClrTypeName InvokedMethodFirstTypeArgument(this IInvocationExpression invocation)
@@ -58,25 +45,5 @@ namespace ReSharperPlugin.EntsPlugin.Completions
             return invocation.InvokedMethodFirstTypeArgument()
                    ?? invocation.AssignmentDestType();
         }
-
-        public static void InsertOrAppendAtEach<K, V>(this IDictionary<K, IList<V>> d, IEnumerable<K> keys, params V[] value)
-        {
-            foreach (var key in keys)
-            {
-                d.InsertOrAppend(key, value);
-            }
-        }
-        public static void InsertOrAppend<K, V>(this IDictionary<K, IList<V>> d, K key, params V[] value)
-        {
-            if (d.ContainsKey(key))
-            {
-                d[key].AddRange(value);
-            }
-            else
-            {
-                d[key] = new List<V>(value);
-            }
-        }
-
     }
 }

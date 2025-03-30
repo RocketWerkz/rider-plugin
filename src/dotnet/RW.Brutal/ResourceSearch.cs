@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using JetBrains.Application.BuildScript.Install.Launcher;
 using JetBrains.Application.UI.Icons.Shell;
 using JetBrains.DocumentModel;
 using JetBrains.Metadata.Reader.API;
@@ -20,20 +19,19 @@ using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.CSharp;
 using JetBrains.ReSharper.Psi.ExpectedTypes;
 using JetBrains.ReSharper.Psi.Resources;
-using JetBrains.ReSharper.Psi.Resx.Utils;
 using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.TextControl;
 using JetBrains.UI.Icons;
 using JetBrains.UI.RichText;
 using JetBrains.Util;
-using ReSharperPlugin.EntsPlugin.Completions;
 
-namespace ReSharperPlugin.EntsPlugin;
+namespace RW.Brutal;
 
 [Language(typeof(CSharpLanguage))]
 public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContext>
 {
-    private String Prefix = "res://";
+    private const string Prefix = "Content/";
+    
     protected override bool IsAvailable(CSharpCodeCompletionContext context)
     {
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
@@ -41,14 +39,17 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
     
     private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType;
     
+    /// <summary>
+    ///     Suggests full paths to resource files based on the string completion's context.
+    /// </summary>
     private IEnumerable<CompletionItem> FullPathCompletions(CSharpCodeCompletionContext context, VirtualFileSystemPath searchPath)
     {
         if (context.GetResourceType() is not { } resourceType)
-            return Enumerable.Empty<CompletionItem>();
+            return [];
 
         ourFileExtensionsByType.TryGetValue(resourceType, out var matchingFileExtensions);
         return matchingFileExtensions is null 
-            ? Enumerable.Empty<CompletionItem>()
+            ? []
             : ResourceFiles(searchPath, matchingFileExtensions);
     }
     
@@ -56,9 +57,7 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
     {
         var searchDir = SearchDir(path);
         if (searchDir is null)
-        {
-            return Enumerable.Empty<CompletionItem>();
-        }
+            return [];
 
         return
             from p in ResourceFilesInner(searchDir, extensions)
@@ -68,23 +67,17 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
     private static IEnumerable<VirtualFileSystemPath> ResourceFilesInner(VirtualFileSystemPath path, IList<string> extensions)
     {
         if (ShouldIgnore(path))
-        {
-            return Enumerable.Empty<VirtualFileSystemPath>();
-        }
+            return [];
 
         if (path.ExistsFile && extensions.Any(ext => ext.Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)))
-        {
-            return new[] { path };
-        }
+            return [path];
 
         if (path.ExistsDirectory)
-        {
             return
                 path.GetChildren()
                     .SelectMany(child => ResourceFilesInner(child.GetAbsolutePath(), extensions));
-        }
 
-        return Enumerable.Empty<VirtualFileSystemPath>();
+        return [];
     }
     
     private static bool ShouldIgnore(VirtualFileSystemPath path)
@@ -93,7 +86,6 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         // - dotfiles or directories starting with "."
         // - iml - some subsidiary file, which Rider creates
         return path.Name.StartsWith(".")
-               || "import".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
                || "iml".Equals(path.ExtensionNoDot, StringComparison.OrdinalIgnoreCase)
                || path.ExtensionNoDot.Equals("csproj", StringComparison.OrdinalIgnoreCase)
                || path.ExtensionNoDot.Equals("sln", StringComparison.OrdinalIgnoreCase);
@@ -123,52 +115,48 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
             var projectPath = project.ProjectLocationLive.Value;
             if (projectPath is null) 
                 return false;
+            
             var stringLiteral = context.StringLiteral();
             if (stringLiteral is null)
                 return false;
 
             var originalString = string.Empty;
             if (stringLiteral.ConstantValue.AsString() is { } os)
-            {
                 originalString = os;
-            }
             
+            // Ensure relative path starts from "Content/" prefix
             var relativePathString = string.Empty;
-            if (originalString.StartsWith(Prefix)) 
+            if (originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
                 relativePathString = originalString.Substring(Prefix.Length);
-            var searchPath = VirtualFileSystemPath.ParseRelativelyTo(relativePathString, projectPath);
+            
+            // Start searching from the "Content" folder
+            var contentPath = projectPath.Combine("Content");
+            var searchPath = VirtualFileSystemPath.ParseRelativelyTo(relativePathString, contentPath);
 
             var completions = FullPathCompletions(context, searchPath).ToList();
 
-            // If path leads outside project (e.g., due to `..` going up too many levels), don't provide completions.
-            if (!projectPath.IsPrefixOf(searchPath))
-            {
+            // If path leads outside the "Content" folder, skip completions
+            if (!contentPath.IsPrefixOf(searchPath))
                 return false;
-            }
 
-            if (originalString.StartsWith(Prefix))
-            {
+            if (originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
                 completions.AddRange(OneLevelPathCompletions(searchPath));
-            }
                 
-            var items = 
-                (from completion in completions.Distinct() 
-                    select new ResourcePathItem(projectPath, completion, context.CompletionRanges))
-                .ToList();
+            // Create ResourcePathItem for each completion
+            var items = completions.Distinct().Select(completion =>
+                new ResourcePathItem(contentPath, completion, context.CompletionRanges)).ToList();
+            
             foreach (var item in items)
-            {
                 collector.Add(item);
-            }
                 
-            if (!originalString.StartsWith(Prefix) && completions.Any())
+            if (!originalString.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase) && completions.Any())
             {
-                // workarounds RIDER-90857
+                // Add a fallback item with the "Content/" prefix for cases where no completions match
                 var resItem = new StringLiteralItem(Prefix);
                 var ranges = context.CompletionRanges;
-                var range = new TextLookupRanges(new DocumentRange(ranges.InsertRange.StartOffset + 1,
-                        ranges.InsertRange.EndOffset + 1),
-                    new DocumentRange(ranges.ReplaceRange.StartOffset + 1,
-                        ranges.ReplaceRange.EndOffset - 1)
+                var range = new TextLookupRanges(
+                    new DocumentRange(ranges.InsertRange.StartOffset + 1, ranges.InsertRange.EndOffset + 1),
+                    new DocumentRange(ranges.ReplaceRange.StartOffset + 1, ranges.ReplaceRange.EndOffset - 1)
                 );
 
                 resItem.InitializeRanges(range, context.BasicContext);
@@ -179,13 +167,16 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         //);
     }
     
+    /// <summary>
+    ///     Suggests child files or directories of the given path with the aim of completing a path to any existing
+    ///     regular file. If path is an existing regular file, the path is complete, so no suggestions are returned.
+    ///     Otherwise, lists the entries of the last directory in the path.
+    /// </summary>
     private IEnumerable<CompletionItem> OneLevelPathCompletions(VirtualFileSystemPath path)
     {
         var searchDir = SearchDir(path);
         if (searchDir is null)
-        {
             return Enumerable.Empty<CompletionItem>();
-        }
 
         return
             from child in searchDir.GetChildren()
@@ -215,14 +206,25 @@ class CompletionItem
 sealed class ResourcePathItem : TextLookupItemBase
 {
     private readonly CompletionItem myCompletionItem;
-    private String Prefix = "res://";
+    
     public ResourcePathItem(VirtualFileSystemPath projectPath,
         CompletionItem completionItem, TextLookupRanges ranges)
     {
         myCompletionItem = completionItem;
         Ranges = ranges;
-        Text =
-            Text = $"\"{Prefix}{completionItem.Completion.MakeRelativeTo(projectPath).NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix)}\"";
+        
+        // Force projectPath to point to root/Content
+        var contentPath = projectPath.Combine("Content");
+        
+        // Compute relative path and enforce "Content/" prefix
+        var relativePath = completionItem.Completion.MakeRelativeTo(contentPath)
+            .NormalizeSeparators(FileSystemPathEx.SeparatorStyle.Unix);
+        
+        if (!relativePath.StartsWith("Content/", StringComparison.OrdinalIgnoreCase))
+            relativePath = $"Content/{relativePath.TrimStart('.', '/')}";
+        
+        // Must start with `"Content/"` instead of `"Content` as the second quotation mark (closing quote) is needed
+        Text = $"\"{relativePath}\"";
     }
 
     protected override RichText GetDisplayName() => LookupUtil.FormatLookupString(

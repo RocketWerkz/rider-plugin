@@ -1,14 +1,21 @@
 <idea-plugin require-restart="true">
-  <id>com.jetbrains.rider.plugins.EntsRider</id>
-  <name>EntsRider</name>
+  <id>RW.Brutal</id>
+  <name>BRUTAL</name>
   <version>_PLACEHOLDER_</version>
-  <vendor url="https://project-url">Author</vendor>
+  <vendor url="https://project-url">Rocketwerkz Enterprise</vendor>
   <idea-version since-build="_PLACEHOLDER_" until-build="_PLACEHOLDER_" />
   <depends>com.intellij.modules.rider</depends>
 
+  <resource-bundle>messages.CognitiveComplexityBundle</resource-bundle>
+
+  <extensions defaultExtensionNs="com.intellij"/>
+
   <description>
-<![CDATA[
-<p>Sample description</p>
+    <![CDATA[
+<p>An Internal RocketWerkz plugin for the BRUTAL game engine integration on Rider. 
+Allowing for:
+- Path resource search and completion
+- Colour Wheel on internal classes and methods</p>
 ]]>
   </description>
 
