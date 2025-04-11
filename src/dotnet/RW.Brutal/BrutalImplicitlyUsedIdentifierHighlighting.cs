@@ -2,7 +2,7 @@ using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Feature.Services.Daemon;
 using JetBrains.ReSharper.Psi.CSharp;
 
-namespace RW.Brutal
+namespace RW.Brutal.Highlightings
 {
     [StaticSeverityHighlighting(Severity.INFO,
         typeof(HighlightingGroupIds.IdentifierHighlightings),

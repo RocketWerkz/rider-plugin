@@ -1,4 +1,4 @@
-namespace RW.Brutal
+namespace RW.Brutal.Highlightings
 {
     public interface IBrutalHighlighting
     {
