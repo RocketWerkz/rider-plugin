@@ -1,7 +1,7 @@
 ﻿<Project>
 
   <PropertyGroup>
-    <SdkVersion>2024.3.6</SdkVersion>
+    <SdkVersion>2025.1.0</SdkVersion>
 
     <Title>RW.Brutal</Title>
     <Description>An Internal RocketWerkz Plugin for better utilisation of the Brutal Engine</Description>
