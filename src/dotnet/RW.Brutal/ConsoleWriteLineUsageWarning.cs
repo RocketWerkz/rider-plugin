@@ -28,7 +28,7 @@ public class ConsoleWriteLineUsageWarning(IReferenceExpression referenceExpressi
     public DocumentRange CalculateRange() => referenceExpression.GetDocumentRange();
 
     // The tooltip message shown when the user hovers over the highlighted element
-    public string ToolTip => "Usage of Console.WriteLine is not recommended.";
+    public string ToolTip => "Usage of Console.WriteLine is not recommended. Please use Log.Print in the Brutal Framework.";
     
     // The message shown in the error stripe when this highlight is present
     public string ErrorStripeToolTip => ToolTip;
