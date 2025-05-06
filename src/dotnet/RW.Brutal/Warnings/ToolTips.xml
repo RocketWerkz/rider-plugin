@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ToolTips>
+    <ToolTip 
+            Key="SystemDrawingUsageWarning" 
+            Text="Usage of System.Drawing is not recommended, use Brutal.Maths instead." />
+    <ToolTip 
+            Key="SystemNumericsUsageWarning"
+            Text="Usage of System.Numerics is not recommended." />
+    <ToolTip 
+            Key="ConsoleWriteLineUsageWarning"
+            Text="Usage of Console.WriteLine is not recommended. Please use Log.Print in the Brutal Framework." />
+</ToolTips>

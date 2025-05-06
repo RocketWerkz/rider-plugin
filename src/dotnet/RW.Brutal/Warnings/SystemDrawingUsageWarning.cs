@@ -1,7 +1,7 @@
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Feature.Services.Daemon;
-using JetBrains.ReSharper.Psi.Tree;
 using JetBrains.ReSharper.Psi.CSharp.Tree;
+using JetBrains.ReSharper.Psi.Tree;
 
 namespace RW.Brutal;
 
@@ -28,7 +28,7 @@ public class SystemDrawingUsageWarning(IReferenceExpression referenceExpression)
     public DocumentRange CalculateRange() => referenceExpression.GetDocumentRange();
 
     // The tooltip message shown when the user hovers over the highlighted element
-    public string ToolTip => "Usage of System.Drawing is not recommended, use Brutal.Maths instead.";
+    public string ToolTip => ToolTips.GetToolTip(this);
     
     // The message shown in the error stripe when this highlight is present
     public string ErrorStripeToolTip => ToolTip;

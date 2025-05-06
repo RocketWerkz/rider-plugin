@@ -16,6 +16,10 @@
 
   <ItemGroup>
     <PackageReference Include="JetBrains.Rider.SDK" Version="$(SdkVersion)" />
+
+    <None Update="Warnings\ToolTips.xml">
+      <DependentUpon>ToolTips.cs</DependentUpon>
+    </None>
   </ItemGroup>
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />

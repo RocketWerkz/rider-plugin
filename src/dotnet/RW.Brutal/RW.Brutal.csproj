@@ -23,6 +23,9 @@
     <None Remove="Rider\**\*" />
     <EmbeddedResource Remove="Rider\**\*" />
     <Content Remove="Rider\**\*" />
+    <None Update="Warnings\ToolTips.xml">
+      <DependentUpon>ToolTips.cs</DependentUpon>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
