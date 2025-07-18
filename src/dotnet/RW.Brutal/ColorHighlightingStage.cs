@@ -29,7 +29,7 @@ namespace RW.Brutal
             if (processKind == DaemonProcessKind.VISIBLE_DOCUMENT &&
                 settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled))
             {
-                return new ColorHighlighterProcess(file.GetSolution().GetComponents<IColorReferenceProvider>(),
+                return new ColorHighlighterProcess(file.GetSolution().GetComponents2<IColorReferenceProvider>(),
                     process, settings, file);
             }
             return null;
