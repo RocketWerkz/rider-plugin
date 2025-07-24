@@ -37,19 +37,24 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
     }
     
-    private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType;
+    private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType = new
+        Dictionary<IClrTypeName, IList<string>>();
     
     /// <summary>
     ///     Suggests full paths to resource files based on the string completion's context.
     /// </summary>
-    private IEnumerable<CompletionItem> FullPathCompletions(CSharpCodeCompletionContext context, VirtualFileSystemPath searchPath)
+    private IEnumerable<CompletionItem> FullPathCompletions(CSharpCodeCompletionContext context,
+        VirtualFileSystemPath searchPath)
     {
         if (context.GetResourceType() is not { } resourceType)
-            return [];
+            return Enumerable.Empty<CompletionItem>();
+        
+        if (!ourFileExtensionsByType.ContainsKey(resourceType))
+            ourFileExtensionsByType[resourceType] = new List<string>();
 
         ourFileExtensionsByType.TryGetValue(resourceType, out var matchingFileExtensions);
         return matchingFileExtensions is null 
-            ? []
+            ? Enumerable.Empty<CompletionItem>()
             : ResourceFiles(searchPath, matchingFileExtensions);
     }
     

@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using JetBrains;
 using JetBrains.Application.Settings;
-using JetBrains.Diagnostics;
 using JetBrains.ReSharper.Daemon.CSharp.Stages;
 using JetBrains.ReSharper.Feature.Services.ColorHints;
 using JetBrains.ReSharper.Feature.Services.Daemon;
@@ -181,7 +179,7 @@ namespace RW.Brutal
                     var baseColor = GetColorFromFloatGrayscale(arguments);
                     if (baseColor is null) return null;
                     var (a, rgb) = baseColor.Value;
-                    color = rgb.WithA((byte)(255.0 * a.Value));
+                    color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(a.HasValue ? 255.0 * a.Value : 255));
                 }
                 else
                 {
@@ -192,7 +190,7 @@ namespace RW.Brutal
                     // If an alpha value exists, adjust the color's transparency accordingly, otherwise default to full
                     // opacity (1)
                     var (a, rgb) = baseColor.Value;
-                    color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(255.0 * a.Value));
+                    color = rgb.WithA(isThreeArgs ? (byte)255 : (byte)(a.HasValue ? 255.0 * a.Value : 255));
                 }
             }
             
@@ -218,7 +216,7 @@ namespace RW.Brutal
                         baseColor = GetColorFromHexStringRgba(arguments) ?? GetColorFromHexColorRgba(arguments);
                         if (baseColor is null) return null;
                         var (a, hex) = baseColor.Value;
-                        color = hex.WithA((byte)a);
+                        color = hex.WithA(a ?? 255);
                     }
                     else if(string.Equals(name, "Grayscale", StringComparison.Ordinal))
                     {
@@ -234,7 +232,7 @@ namespace RW.Brutal
                     var baseColor = GetColorFromByteGrayscale(arguments);
                     if (baseColor is null) return null;
                     var (a, rgb) = baseColor.Value;
-                    color = rgb.WithA((byte)a);
+                    color = rgb.WithA(a.HasValue ? (byte)a.Value : (byte)255);
                 }
                 else
                 {
@@ -248,7 +246,7 @@ namespace RW.Brutal
                     else if (isFourArgs)
                     {
                         var (a, rgb) = baseColor.Value;
-                        color = rgb.WithA((byte)a);
+                        color = rgb.WithA(a.HasValue ? (byte)a.Value : (byte)255);
                     }
                 }
             }
@@ -290,7 +288,7 @@ namespace RW.Brutal
                     var baseColor = GetColorFromUshortGrayscale(arguments);
                     if (baseColor is null) return null;
                     var (a, rgb) = baseColor.Value;
-                    color = rgb.WithA((byte)a);
+                    color = rgb.WithA(a.HasValue ? (byte)a.Value : (byte)255);
                 }
                 else
                 {
@@ -306,7 +304,7 @@ namespace RW.Brutal
                     else if (isFourArgs)
                     {
                         var (a, rgb) = baseColor.Value;
-                        color = rgb.WithA((byte)a);
+                        color = rgb.WithA(a.HasValue ? (byte)a.Value : (byte)255);
                     }
                 }
             }
@@ -596,8 +594,8 @@ namespace RW.Brutal
         {
             var constantValue = GetNamedArgument(arguments, parameterName)?.Expression?.ConstantValue;
             if (constantValue == null || !constantValue.IsUinteger()) return null;
-            var value = (uint)constantValue.Value;
-            return value >= min && value <= max ? value : null;
+            var value = constantValue.IntValue;
+            return value >= min && value <= max ? (uint)value : null;
         }
         
         /// <summary>
@@ -616,7 +614,8 @@ namespace RW.Brutal
             
             // Validate that hexString is exactly 10 characters long (0x + 10 hex digits) and that the first two
             // characters are "0x".
-            if (hexString.Length != 10 || !hexString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            if (hexString == null || hexString.Length != 10 || !hexString.StartsWith("0x",
+                    StringComparison.OrdinalIgnoreCase))
                 return null;
 
             // Convert hex substring to uint
@@ -655,7 +654,8 @@ namespace RW.Brutal
             
             // Validate that hexString is exactly 8 characters long (0x + 8 hex digits) and that the first two
             // characters are "0x".
-            if (hexString.Length != 8 || !hexString.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            if (hexString == null || hexString.Length != 8 || !hexString.StartsWith("0x",
+                    StringComparison.OrdinalIgnoreCase))
                 return null;
 
             // Convert hex substring to uint
@@ -670,8 +670,10 @@ namespace RW.Brutal
         /// </summary>
         private static ICSharpArgument? GetNamedArgument(IEnumerable<ICSharpArgument> arguments, string parameterName)
         {
-            return arguments.FirstOrDefault(a =>
-                parameterName.Equals(a.MatchingParameter?.Element.ShortName, StringComparison.Ordinal));
+            foreach (var argument in arguments)
+                if (parameterName.Equals(argument.MatchingParameter?.Element.ShortName, StringComparison.Ordinal))
+                    return argument;
+            return null;
         }
     }
 }
