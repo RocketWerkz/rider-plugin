@@ -1,14 +1,15 @@
-# Launching DocFX website
-@serve:
-    DocFxTocGenerator -d ./docs -s --folderRef None
-    docfx docfx.json --serve --open-browser
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
-# Launching DocFX website
-@build:
-    DocFxTocGenerator -d ./docs -s --folderRef None
-    docfx docfx.json
+# Build DocFX website
+build:
+    docfx metadata
+    docfx build
+
+# Build DocFX website + serve locally + open browser
+serve:
+    docfx serve _site
 
 # Deletes _site, api folders
-@clean:
+clean:
     rm -rf _site
     rm -rf api 
