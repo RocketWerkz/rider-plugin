@@ -8,6 +8,11 @@ Detailed instructions can be found here: https://www.jetbrains.com/help/idea/man
 
 In the Rider IDE the configuration MUST be set to the OS platform you are using. For Windows, it would be `Rider (Windows)`, for Unix it is `Rider (Unix)`. Then hit the `Play` icon (`Debug` does not work). This executes a new Rider daemon session where you must create or open an existing Rider project that automatically enables the Plugin for specific that Rider project. This way you can test and experience any code changes before officially deploying to the Rider plugin marketplace.
 
+# Current Features
+
+* Path resource search and completion
+* Color wheel and color icon display on internal classes and methods
+
 # Plugin Development
 
 The official Rider [Unity plugin](https://github.com/JetBrains/resharper-unity) and [Godot plugin](https://github.com/JetBrains/godot-support) and their Github repos are a good resource to examine plugin features that we want to replicate for BRUTAL. Developers should be aware that there is a huge lack of official docs to outline the process of developing a Rider plugin therefore relying on existing published plugins that already exist are a good starting point.
@@ -20,6 +25,8 @@ var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()))
 Log.Root.Error($"argValues: {argValues}");
 ```
 # Official Plugin
+
+Unforunately currently blocked by JetBrains. We are currently waiting for the block to be lifted, as this prevents the plugin from being displayed and updated via the Marketplace. If users have already installed the plugin via Marketplace, they can freely enable and disable it via the Rider IDE, but new users search and install it.
 
 https://plugins.jetbrains.com/plugin/26768-brutal
 
