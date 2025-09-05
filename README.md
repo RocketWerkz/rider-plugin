@@ -14,6 +14,14 @@ In the Rider IDE -> Settings - > Search for `Brutal` and select Install. After i
 
 Offical Plugin Link: https://plugins.jetbrains.com/plugin/26768-brutal
 
+## Features
+
+**Path resource search and completion:**
+
+* From the root folder of your project, if a `Content` folder exists, an auto complete box will be displayed showing the possible paths after pressing `/`. This can only be triggered within a string, for example `"Content/Shaders/Line.vert"`
+
+  <img width="662" height="236" alt="pathCompletion" src="https://github.com/user-attachments/assets/ec222f4e-4047-42e5-9664-68672def62fb" />
+
 ## Installing locally
 
 From the release page, download the latest release zip and install it using the `Install plugin from disk` option in the settings.
