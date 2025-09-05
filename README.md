@@ -18,9 +18,17 @@ Offical Plugin Link: https://plugins.jetbrains.com/plugin/26768-brutal
 
 **Path resource search and completion:**
 
-* From the root folder of your project, if a `Content` folder exists, an auto complete box will be displayed showing the possible paths after pressing `/`. This can only be triggered within a string, for example `"Content/Shaders/Line.vert"`
+* From the root folder of your project, if a `Content` folder exists, an auto complete box will be displayed showing the possible paths after pressing `/`. This can only be triggered within a string, for example `"Content/Shaders/Line.vert"`.
 
   <img width="662" height="236" alt="pathCompletion" src="https://github.com/user-attachments/assets/ec222f4e-4047-42e5-9664-68672def62fb" />
+
+**Color support:**
+
+* Support for Brutal Color types. The colour icon is displayed left of the color values.
+
+> Warning: Currently not working. Opening the color palette editor works but does not update the color icon and values.
+
+*  [Colour palette editor](https://www.jetbrains.com/help/rider/Coding_Assistance__Color_Assistance.html) support. To enable place the cursor next to the color icon displays the context action in Rider (or `Alt`+ `Enter`) -> `Pick color from palette` which opens the colour palette editor to modify that colour.
 
 ## Installing locally
 
