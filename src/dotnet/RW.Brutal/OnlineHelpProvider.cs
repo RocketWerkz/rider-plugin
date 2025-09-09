@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using JetBrains.Application;
 using JetBrains.Application.Parts;
+using JetBrains.Diagnostics;
+using JetBrains.Metadata.Reader.API;
 using JetBrains.ReSharper.Feature.Services.OnlineHelp;
 using JetBrains.ReSharper.Psi;
 
@@ -9,14 +12,45 @@ namespace RW.Brutal;
 [ShellComponent(Instantiation.DemandAnyThreadSafe)]
 public class OnlineHelpProvider : IOnlineHelpProvider
 {
+    private static readonly Dictionary<string, string> _urls = new()
+    {
+        ["Brutal"]              = "https://core.rocketwerkz.com",
+        ["Brutal.GlfwApi"]      = "https://glfw.rocketwerkz.com"
+    };
+
+    private static ILog Log => JetBrains.Diagnostics.Log.Root;
+
+    // For now there are no other providers like this one
+    public int Priority => 20;
+    public bool ShouldValidate => false;
+    
+    /// <summary>
+    /// </summary>
+    /// <param name="element"></param>
+    /// <returns></returns>
     public Uri GetUrl(IDeclaredElement element)
     {
-        if (!IsAvailable(element)) return null;
+        var info = GetFullPath(element);
+
+        if (!info.Valid())
+            return null;
         
-        // When pressing F1 link to Brutal docs
-        return new Uri("https://brutal.rocketwerkz.com/");
+        if (!info.Namespace.StartsWith("Brutal"))
+            return null;
+
+        if (!_urls.TryGetValue(info.Namespace, out var url))
+        {
+            Log.Error($"No URL found for namespace {info.Namespace}");
+            return null;
+        }
+        
+        var endPoint = info.FullName ?? info.Namespace;
+        var scope = ParseXmlDocId(element);
+        var link = $"{url}/api/{endPoint}#{scope}";
+        return new Uri(link);
     }
-    
+
+
     public string GetPresentableName(IDeclaredElement element)
     {
         return element?.ShortName ?? "<unknown>";
@@ -28,7 +62,59 @@ public class OnlineHelpProvider : IOnlineHelpProvider
         return element is not null;
     }
 
-    // For now there are no other providers like this one
-    public int Priority => 20;
-    public bool ShouldValidate => false;
+    private static string ParseXmlDocId(IDeclaredElement element)
+    {
+        var id = element.GetType()
+            .GetProperty("XMLDocId")
+            ?.GetValue(element)
+            .ToString();
+        
+        if (string.IsNullOrEmpty(id))
+            return null;
+        
+        // remove start of string
+        id = id.Substring(2, id.Length - 2);
+        
+        // replace invalid characters
+        id = id
+            .Replace(".", "_")
+            .Replace(",", "_")
+            .Replace("(", "_")
+            .Replace(")", "_");
+        
+        return id;
+    }
+    
+    private static Info GetFullPath(IDeclaredElement element)
+    {
+        return element switch
+        {
+            INamespace nsElem => new Info
+            {
+                Namespace = nsElem.QualifiedName
+            },
+            ITypeElement type => new Info
+            {
+                FullName = type.GetClrName().FullName,
+                Namespace = type.GetClrName().GetNamespaceName(),
+            },
+            ITypeMember member => new Info
+            {
+                FullName = member.ContainingType?.GetClrName().FullName,
+                Namespace = member.ContainingType?.GetClrName().GetNamespaceName(),
+            },
+            _ => default
+        };
+    }
+    
+    private struct Info
+    {
+        public string FullName;
+        public string Namespace;
+
+        public bool Valid()
+        {
+            return FullName is not null || Namespace is not null;
+        }
+    }
 }
