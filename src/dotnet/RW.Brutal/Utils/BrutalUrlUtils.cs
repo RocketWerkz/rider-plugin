@@ -1,5 +1,5 @@
 // Generated via `rocket plugin` command
-// Last generated: 2025-09-10 14:31:30
+// Last generated: 2025-09-10 14:49:52
 using System;
 namespace RW.Brutal;
 public static class BrutalUrlUtils
@@ -77,7 +77,7 @@ public static class BrutalUrlUtils
 		)
 			return "http://vulkan.rocketwerkz.com/";
 		if(
-			ns == "Brutal"
+			ns.StartsWith("Brutal.GltfApi")
 		)
 			return "http://gltf.rocketwerkz.com/";
 		if(
