@@ -1,5 +1,5 @@
 // Generated via `rocket plugin` command
-// Last generated: 2025-09-10 14:27:26
+// Last generated: 2025-09-10 14:31:30
 using System;
 namespace RW.Brutal;
 public static class BrutalUrlUtils
@@ -8,7 +8,6 @@ public static class BrutalUrlUtils
 	{
 		if(
 			ns.StartsWith("Brutal.Framework")
-			|| ns.StartsWith("Brutal.Framework.Sandbox")
 		)
 			return "";
 		if(
@@ -16,13 +15,12 @@ public static class BrutalUrlUtils
 		)
 			return "http://core.rocketwerkz.com/";
 		if(
-			ns.StartsWith("Brutal.FmodApi")
-			|| ns.StartsWith("Brutal.Fmod.Generator")
+			ns.StartsWith("Brutal.Fmod.Examples")
+			|| ns.StartsWith("Brutal.FmodApi")
 		)
 			return "http://fmod.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.GlfwApi")
-			|| ns.StartsWith("Brutal.Glfw.Generate")
 		)
 			return "http://glfw.rocketwerkz.com/";
 		if(
@@ -31,7 +29,6 @@ public static class BrutalUrlUtils
 			return "http://gli.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.ImGuiApi")
-			|| ns.StartsWith("Brutal.ImGui.Generator")
 		)
 			return "http://imgui.rocketwerkz.com/";
 		if(
@@ -40,12 +37,12 @@ public static class BrutalUrlUtils
 			return "http://ktx.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.OpenGlApi")
-			|| ns.StartsWith("Brutal.OpenGl.Generate")
 		)
 			return "http://opengl.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.RakNetApi")
-			|| ns.StartsWith("Brutal.RakNet.Generate")
+			|| ns.StartsWith("SwigTestApp")
+			|| ns.StartsWith("InternalSwigTestApp")
 		)
 			return "http://raknet.rocketwerkz.com/";
 		if(
@@ -54,7 +51,6 @@ public static class BrutalUrlUtils
 			return "http://stb.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.ShaderCompilerApi")
-			|| ns.StartsWith("Brutal.ShaderCompiler.Generate")
 		)
 			return "http://shadercompiler.rocketwerkz.com/";
 		if(
@@ -70,7 +66,6 @@ public static class BrutalUrlUtils
 			return "http://nativefiledialog.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.Box2DApi")
-			|| ns.StartsWith("Brutal.Box2D.Generate")
 		)
 			return "http://box2d.rocketwerkz.com/";
 		if(
@@ -79,17 +74,14 @@ public static class BrutalUrlUtils
 			return "http://debug.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.VulkanApi")
-			|| ns.StartsWith("Brutal.Vulkan.Generate")
 		)
 			return "http://vulkan.rocketwerkz.com/";
 		if(
-			ns.StartsWith("Brutal.Gltf.Generator")
-			|| ns == "Brutal"
+			ns == "Brutal"
 		)
 			return "http://gltf.rocketwerkz.com/";
 		if(
 			ns.StartsWith("Brutal.Interop")
-			|| ns.StartsWith("Brutal.Interop.Generate")
 		)
 			return "http://interop.rocketwerkz.com/";
 
