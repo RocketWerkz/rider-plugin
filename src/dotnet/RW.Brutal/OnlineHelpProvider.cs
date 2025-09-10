@@ -28,6 +28,9 @@ public class OnlineHelpProvider : IOnlineHelpProvider
 
         var url = BrutalUrlUtils.GetPackageIdFromNamespace(info.Namespace);
 
+        if (string.IsNullOrEmpty(url))
+            return null;
+
         var endPoint = info.FullName ?? info.Namespace;
         var scope = ParseXmlDocId(element);
         var link = $"{url}api/{endPoint}#{scope}";
