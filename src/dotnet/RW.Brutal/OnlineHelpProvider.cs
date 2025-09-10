@@ -102,7 +102,7 @@ public class OnlineHelpProvider : IOnlineHelpProvider
 
         public bool Valid()
         {
-            return FullName is not null && Namespace is not null;
+            return FullName is not null || Namespace is not null;
         }
     }
 }
