@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - '*.*.*'
+        
+permissions:
+  contents: write
 
 jobs:
   Publish:
@@ -13,11 +16,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Run Gradle Publish
-        run: ./gradlew :publishPlugin -PBuildConfiguration="Release" -PPluginVersion="${{ github.ref_name }}" -PPublishToken="${{ env.PUBLISH_TOKEN }}"
-        env:
-          PUBLISH_TOKEN: ${{ secrets.JB_UPLOAD_TOKEN }}
+      - name: Run Gradle Build
+        run: ./gradlew :buildPlugin -PBuildConfiguration="Release" -PPluginVersion="${{ github.ref_name }}"
 
       - name: Create GitHub Release & Upload Artifact
         uses: softprops/action-gh-release@v2
@@ -28,3 +31,39 @@ jobs:
           draft: false
           prerelease: false
           files: output/RW.Brutal-${{ github.ref_name }}.zip
+          
+      - name: Switch to main
+        shell: bash
+        run: |
+          git fetch origin main
+          git checkout main
+          git pull origin main
+          
+      - name: Update updatePlugins.xml
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $file    = "docs/updatePlugins.xml"
+          $url     = "https://github.com/RocketWerkz/rider-plugin/releases/download/$version/RW.Brutal-$version.zip"
+
+          [xml]$xml = Get-Content $file
+
+          $plugin = $xml.CreateElement("plugin")
+          $plugin.SetAttribute("id", "com.rw.brutal.plugin")
+          $plugin.SetAttribute("url", $url)
+          $plugin.SetAttribute("version", $version)
+          $plugin.SetAttribute("idea-version", "202.0-999.0")
+          $plugin.SetAttribute("name", "RW Brutal Plugin")
+          $plugin.SetAttribute("description", "The internal RocketWerkz plugin for Brutal in Rider.")
+
+          $xml.plugins.AppendChild($plugin) | Out-Null
+          $xml.Save($file)
+
+      - name: Commit updated updatePlugins.xml
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/updatePlugins.xml
+          git commit -m "auto update updatePlugins.xml for version ${{ github.ref_name }}"
+          git push origin HEAD:main
