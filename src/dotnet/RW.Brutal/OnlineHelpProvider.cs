@@ -31,7 +31,7 @@ public class OnlineHelpProvider : IOnlineHelpProvider
         if (string.IsNullOrEmpty(url))
             return null;
 
-        var endPoint = info.FullName ?? info.Namespace;
+        var endPoint = info.FullName;
         var scope = ParseXmlDocId(element);
         var link = $"{url}api/{endPoint}#{scope}";
         return new Uri(link);
@@ -78,6 +78,7 @@ public class OnlineHelpProvider : IOnlineHelpProvider
         {
             INamespace nsElem => new Info
             {
+                FullName = nsElem.QualifiedName,
                 Namespace = nsElem.QualifiedName
             },
             ITypeElement type => new Info
@@ -101,7 +102,7 @@ public class OnlineHelpProvider : IOnlineHelpProvider
 
         public bool Valid()
         {
-            return FullName is not null || Namespace is not null;
+            return FullName is not null && Namespace is not null;
         }
     }
 }
