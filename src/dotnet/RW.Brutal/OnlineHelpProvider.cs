@@ -12,22 +12,10 @@ namespace RW.Brutal;
 [ShellComponent(Instantiation.DemandAnyThreadSafe)]
 public class OnlineHelpProvider : IOnlineHelpProvider
 {
-    private static readonly Dictionary<string, string> _urls = new()
-    {
-        ["Brutal"]              = "https://core.rocketwerkz.com",
-        ["Brutal.GlfwApi"]      = "https://glfw.rocketwerkz.com"
-    };
-
-    private static ILog Log => JetBrains.Diagnostics.Log.Root;
-
     // For now there are no other providers like this one
     public int Priority => 20;
     public bool ShouldValidate => false;
-    
-    /// <summary>
-    /// </summary>
-    /// <param name="element"></param>
-    /// <returns></returns>
+
     public Uri GetUrl(IDeclaredElement element)
     {
         var info = GetFullPath(element);
@@ -38,15 +26,11 @@ public class OnlineHelpProvider : IOnlineHelpProvider
         if (!info.Namespace.StartsWith("Brutal"))
             return null;
 
-        if (!_urls.TryGetValue(info.Namespace, out var url))
-        {
-            Log.Error($"No URL found for namespace {info.Namespace}");
-            return null;
-        }
-        
+        var url = BrutalUrlUtils.GetPackageIdFromNamespace(info.Namespace);
+
         var endPoint = info.FullName ?? info.Namespace;
         var scope = ParseXmlDocId(element);
-        var link = $"{url}/api/{endPoint}#{scope}";
+        var link = $"{url}api/{endPoint}#{scope}";
         return new Uri(link);
     }
 
