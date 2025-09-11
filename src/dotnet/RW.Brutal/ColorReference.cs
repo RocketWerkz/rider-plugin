@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
+using JetBrains.Diagnostics;
 using JetBrains.DocumentModel;
 using JetBrains.ReSharper.Psi;
 using JetBrains.ReSharper.Psi.Colors;
@@ -82,7 +83,7 @@ namespace RW.Brutal
         }
         
         /// <summary>
-        ///     Correctly updates existing float3 and float4 invocation with new literal float values when using the
+        ///     Correctly updates existing float3, float4, ushort3, ushort4 invocation with new values when using the
         ///     Color Picker (eg. float4.Rgb(1, 0, 0)). Preserves the method name and argument count.
         /// </summary>
         private void TryReplaceAsNumericLiteral(JetRgbaColor color)
@@ -92,21 +93,58 @@ namespace RW.Brutal
 
             var args = invocation.ArgumentList.Arguments;
             var factory = CSharpElementFactory.GetInstance(invocation);
+            var psiModule = myOwningExpression.GetPsiModule();
+            var colorTypes = ColorTypes.GetInstance(psiModule);
+            
+            // Resolve the method
+            var resolvedElement = invocation.Reference?.Resolve().DeclaredElement as IMethod;
+            if (resolvedElement == null)
+                return;
+            
+            // Check the return type
+            var returnType = resolvedElement.ReturnType as IDeclaredType;
+            var returnTypeElement = returnType?.GetTypeElement();
+            if (returnTypeElement == null)
+                return;
+            
+            // Safe to proceed
+            if (returnTypeElement.Equals(colorTypes.ColorFloat3Type) ||
+                returnTypeElement.Equals(colorTypes.ColorFloat4Type))
+            {
+                ReplaceFloat(0, color.R / 255f);
+                ReplaceFloat(1, color.G / 255f);
+                ReplaceFloat(2, color.B / 255f);
+                if (args.Count >= 4)
+                    ReplaceFloat(3, color.A / 255f);
+            }
+            else if (returnTypeElement.Equals(colorTypes.ColorUshort3Type) ||
+                     returnTypeElement.Equals(colorTypes.ColorUshort4Type))
+            {
+                ReplaceUshort(0, color.R);
+                ReplaceUshort(1, color.G);
+                ReplaceUshort(2, color.B);
+                if (args.Count >= 4)
+                    ReplaceUshort(3, color.A);
+            }
 
-            ReplaceArg(0, color.R / 255f);
-            ReplaceArg(1, color.G / 255f);
-            ReplaceArg(2, color.B / 255f);
-
-            if (args.Count >= 4)
-                ReplaceArg(3, color.A / 255f);
-            return;
-
-            void ReplaceArg(int index, float value)
+            void ReplaceFloat(int index, float value)
             {
                 if (index >= args.Count || args[index]?.Value == null) return;
-                
-                var expr = factory.CreateExpression(value.ToString("0.###",
-                    CultureInfo.InvariantCulture));
+
+                var expr = factory.CreateExpression(
+                    value.ToString("0.###", CultureInfo.InvariantCulture));
+                LowLevelModificationUtil.ReplaceChild(args[index].Value, expr);
+            }
+
+            void ReplaceUshort(int index, byte component)
+            {
+                if (index >= args.Count || args[index]?.Value == null) return;
+
+                // Scale from byte (0-255) to ushort (0-65535)
+                ushort ushortValue = (ushort)(component / 255.0 * 65535.0);
+                string hex = "0x" + ushortValue.ToString("X4"); // e.g., 0xFFFF
+
+                var expr = factory.CreateExpression(hex);
                 LowLevelModificationUtil.ReplaceChild(args[index].Value, expr);
             }
         }
