@@ -88,6 +88,11 @@ jobs:
           NEW_VERSION="${parts[0]}.${parts[1]}.${parts[2]}"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "✅ Incremented Version: $NEW_VERSION"
+  
+      - name: Add NuGet.config
+        uses: RocketWerkz/rw_actions/setup-nuget@main
+        with:
+          nuget-password: ${{ secrets.GH_PAT }}
 
       - name: Run Gradle Build
         run: ./gradlew :buildPlugin -PBuildConfiguration="Release" -PPluginVersion="${{ steps.increment_version.outputs.new_version }}"
