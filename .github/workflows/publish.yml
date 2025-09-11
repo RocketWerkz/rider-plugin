@@ -1,9 +1,26 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      - '*.*.*'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run'
+        required: true
+        default: false
+        type: boolean
+      version-option:
+        description: 'Choose the version to publish and tag'
+        required: true
+        type: choice
+        default: 'Tag - New Patch Version (x.x.1)'
+        options:
+          - 'Tag - New Major Version (1.x.x)'
+          - 'Tag - New Minor Version (x.1.x)'
+          - 'Tag - New Patch Version (x.x.1)'
+      message:
+        description: 'Optional message for slack release notification'
+        default: ''
+        type: string
         
 permissions:
   contents: write
@@ -18,21 +35,76 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          fetch-tags: 'true'
+          
+      - name: Get Latest Version
+        shell: bash
+        id: get_version
+        run: |
+          set -euo pipefail
+          
+          echo "🔍 Getting latest git tag..."
+          
+          # Fetch tags (in case they are not up-to-date locally)
+          git fetch --tags --quiet
+          
+          # Get the latest tag by commit date
+          LATEST_TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)" 2>/dev/null || echo "")
+          
+          if [[ -z "$LATEST_TAG" ]]; then
+          echo "❗️No tags found, assuming first release"
+          LATEST_VERSION="1.0.0"
+          fi
+        
+          echo "✅ Latest version: $LATEST_VERSION"
+          echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+        
+      - name: Increment Version
+        shell: bash
+        id: increment_version
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.get_version.outputs.latest_version }}"
+          VERSION="${VERSION%%-*}"
+          INCREMENT_ON="${{ inputs.version-option }}"
+
+          IFS='.' read -r -a parts <<< "$VERSION"
+          for ((i=${#parts[@]}; i<3; i++)); do parts[i]=0; done
+
+          case "$INCREMENT_ON" in
+          "Tag - New Major Version (1.x.x)") index=0 ;;
+          "Tag - New Minor Version (x.1.x)") index=1 ;;
+          "Tag - New Patch Version (x.x.1)") index=2 ;;
+          *)
+          echo "Invalid increment option: $INCREMENT_ON"
+          exit 1
+          ;;
+          esac
+
+          parts[$index]=$(( parts[$index] + 1 ))
+
+          for ((i=index+1; i<3; i++)); do parts[i]=0; done
+
+          NEW_VERSION="${parts[0]}.${parts[1]}.${parts[2]}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Incremented Version: $NEW_VERSION"
 
       - name: Run Gradle Build
-        run: ./gradlew :buildPlugin -PBuildConfiguration="Release" -PPluginVersion="${{ github.ref_name }}"
+        run: ./gradlew :buildPlugin -PBuildConfiguration="Release" -PPluginVersion="${{ steps.increment_version.outputs.new_version }}"
 
       - name: Create GitHub Release & Upload Artifact
+        if: ${{ !inputs.dry-run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: "Automated release for version ${{ github.ref_name }}"
+          tag_name: ${{ steps.increment_version.outputs.new_version }}
+          name: Release ${{steps.increment_version.outputs.new_version }}
+          body: "Automated release for version ${{ steps.increment_version.outputs.new_version }}"
           draft: false
           prerelease: false
-          files: output/RW.Brutal-${{ github.ref_name }}.zip
+          files: output/RW.Brutal-${{ steps.increment_version.outputs.new_version }}.zip
           
       - name: Switch to main
+        if: ${{ !inputs.dry-run }}
         shell: bash
         run: |
           git fetch origin main
@@ -40,9 +112,10 @@ jobs:
           git pull origin main
           
       - name: Update updatePlugins.xml
+        if: ${{ !inputs.dry-run }}
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}"
+          $version = "${{ steps.increment_version.outputs.new_version }}"
           $file    = "docs/updatePlugins.xml"
           $url     = "https://github.com/RocketWerkz/rider-plugin/releases/download/$version/RW.Brutal-$version.zip"
 
@@ -60,10 +133,11 @@ jobs:
           $xml.Save($file)
 
       - name: Commit updated updatePlugins.xml
+        if: ${{ !inputs.dry-run }}
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/updatePlugins.xml
-          git commit -m "auto update updatePlugins.xml for version ${{ github.ref_name }}"
+          git commit -m "auto update updatePlugins.xml for version ${{ steps.increment_version.outputs.new_version }}"
           git push origin HEAD:main
