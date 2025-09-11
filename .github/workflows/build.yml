@@ -18,9 +18,19 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-Build-${{ hashFiles('gradlew.bat', 'src/dotnet/*/*.csproj', 'src/dotnet/*.props', 'gradle-wrapper.properties') }}
       - name: Add NuGet.config
-        uses: RocketWerkz/rw_actions/setup-nuget@main
-        with:
-          nuget-password: ${{ secrets.GH_PAT }}
+        shell: bash
+        run: |
+          FEED_NAME="github"
+          FEED_URL="https://nuget.pkg.github.com/RocketWerkz/index.json"
+          
+          # Check if the feed URL already exists
+          if ! dotnet nuget list source | grep -q "$FEED_URL"; then
+          echo "Adding NuGet feed: $FEED_NAME ($FEED_URL)"
+          
+          dotnet nuget add source --username github.user --name $FEED_NAME --password ${{ secrets.GH_PAT }} --store-password-in-clear-text "$FEED_URL"
+          else
+          echo "NuGet feed with URL '$FEED_URL' already exists."
+          fi
       - run: ./gradlew :buildPlugin --no-daemon
       - uses: actions/upload-artifact@v4
         if: always()
