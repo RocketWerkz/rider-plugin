@@ -23,14 +23,19 @@ namespace RW.Brutal
         // <param name="settings">Settings for the current context (eg. highlighting preferences).</param>
         // <param name="processKind">Specifies what type of analysis is being performed (eg. visible document analysis).</param>
         // <param name="file">The C# file being analyzed.</param>
-        protected override IDaemonStageProcess CreateProcess(IDaemonProcess process, IContextBoundSettingsStore 
-            settings, DaemonProcessKind processKind, ICSharpFile file)
+        protected override IDaemonStageProcess CreateProcess(
+            IDaemonProcess process,
+            IContextBoundSettingsStore settings,
+            DaemonProcessKind processKind,
+            ICSharpFile file)
         {
-            if (processKind == DaemonProcessKind.VISIBLE_DOCUMENT &&
-                settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled))
+            var isVisible = processKind is DaemonProcessKind.VISIBLE_DOCUMENT;
+            var settingsValue = settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled);
+            
+            if (isVisible && settingsValue)
             {
-                return new ColorHighlighterProcess(file.GetSolution().GetComponents2<IColorReferenceProvider>(),
-                    process, settings, file);
+                var provider = file.GetSolution().GetComponents2<IColorReferenceProvider>();
+                return new ColorHighlighterProcess(provider, process, settings, file);
             }
             return null;
         }

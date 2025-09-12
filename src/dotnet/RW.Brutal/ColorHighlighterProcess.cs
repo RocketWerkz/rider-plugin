@@ -32,29 +32,33 @@ namespace RW.Brutal
         // <param name="process">Represents the daemon process handling the analysis.</param>
         // <param name="settingsStore">Provides access to plugin-specific settings.</param>
         // <param name="file">The C# file being analyzed.</param>
-        public ColorHighlighterProcess(IEnumerable<IColorReferenceProvider> providers, IDaemonProcess process,
-            IContextBoundSettingsStore settingsStore, ICSharpFile file)
-            : base(process, settingsStore, file)
+        public ColorHighlighterProcess(
+            IEnumerable<IColorReferenceProvider> providers,
+            IDaemonProcess process,
+            IContextBoundSettingsStore settingsStore,
+            ICSharpFile file)
+                : base(process, settingsStore, file)
         {
             myProviders = providers;
         }
 
         public override void VisitNode(ITreeNode element, IHighlightingConsumer consumer)
         {
-            if (element is ITokenNode tokenNode && tokenNode.GetTokenType().IsWhitespace) return;
+            if (element is ITokenNode tokenNode && tokenNode.GetTokenType().IsWhitespace)
+                return;
 
             var colorInfo = CreateColorHighlightingInfo(element, myProviders);
             
             // If a valid color is found, add a highlight to the editor
-            if (colorInfo != null)
+            if (colorInfo is not null)
                 consumer.AddHighlighting(colorInfo.Highlighting, colorInfo.Range);
         }
 
-        private HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
+        private static HighlightingInfo? CreateColorHighlightingInfo(ITreeNode element, IEnumerable<IColorReferenceProvider> providers)
         {
             var colorReference = GetColorReference(element, providers);
             var range = colorReference?.ColorConstantRange;
-            return range?.IsValid() == true
+            return range?.IsValid() is true
                 ? new HighlightingInfo(range.Value, new ColorHintHighlighting(colorReference))
                 : null;
         }
@@ -71,7 +75,6 @@ namespace RW.Brutal
             {
                 var reference = ReferenceFromInvocation(qualifier, referenceExpression)
                                 ?? ReferenceFromProperty(qualifier, referenceExpression);
-                
                 if (reference != null)
                     return reference;
             }
@@ -80,7 +83,7 @@ namespace RW.Brutal
             foreach (var provider in providers)
             {
                 var reference = provider.GetColorReference(element);
-                if (reference != null)
+                if (reference is not null)
                     return reference;
             }
             
@@ -91,11 +94,12 @@ namespace RW.Brutal
         ///     Handles color references created via an invocation. Eg. `float4.Rgb(r, g, b)`,
         ///     `byte4.Rgb(r, g, b)` and `ushort4.Rgb(r, g, b)`.
         /// </summary>
-        private static IColorReference? ReferenceFromInvocation(IReferenceExpression qualifier,
+        private static IColorReference? ReferenceFromInvocation(
+            IReferenceExpression qualifier,
             IReferenceExpression methodReferenceExpression)
         {
             var invocationExpression = InvocationExpressionNavigator.GetByInvokedExpression(methodReferenceExpression);
-            if (invocationExpression == null || invocationExpression.Arguments.IsEmpty)
+            if (invocationExpression is null || invocationExpression.Arguments.IsEmpty)
                 return null;
 
             var methodReference = methodReferenceExpression.Reference;
@@ -116,11 +120,12 @@ namespace RW.Brutal
             // var argValues = string.Join(", ", arguments.Select(arg => arg.Value?.GetText()));
             // Log.Root.Error($"argValues: {argValues}");
 
-            var qualifierType = qualifier.Reference.Resolve().DeclaredElement as ITypeElement;
-            if (qualifierType is null) return null;
+            if (qualifier.Reference.Resolve().DeclaredElement is not ITypeElement qualifierType)
+                return null;
 
             var colorTypes = ColorTypes.GetInstance(qualifierType.Module);
-            if (!colorTypes.IsColorType(qualifierType)) return null;
+            if (!colorTypes.IsColorType(qualifierType)) 
+                return null;
 
             // Validate method name based on color type and argument count
             if (isOneArg)
