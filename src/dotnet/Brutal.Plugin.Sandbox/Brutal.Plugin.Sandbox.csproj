@@ -26,5 +26,10 @@
                 Include="rocketwerkz.brutal.framework"
                 Version="$(BrutalNuGetVersion)-osx-release"/>
     </ItemGroup>
+    <ItemGroup>
+      <None Update="Content\**">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 
 </Project>
