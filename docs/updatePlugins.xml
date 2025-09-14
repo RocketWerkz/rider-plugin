@@ -1,3 +1,4 @@
 <plugins>
   <plugin id="com.BRUTAL.plugin" url="https://github.com/RocketWerkz/rider-plugin/releases/download/25.3.3/RW.Brutal-25.3.3.zip" version="25.3.3" idea-version="202.0-999.0" name="BRUTAL" description="The internal RocketWerkz plugin for Brutal in Rider." />
+  <plugin id="com.BRUTAL.plugin" url="https://github.com/RocketWerkz/rider-plugin/releases/download/25.3.4/RW.Brutal-25.3.4.zip" version="25.3.4" idea-version="202.0-999.0" name="BRUTAL" description="The internal RocketWerkz plugin for Brutal in Rider." />
 </plugins>
