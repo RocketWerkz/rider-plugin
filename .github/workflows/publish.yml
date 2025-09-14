@@ -49,9 +49,9 @@ jobs:
           git fetch --tags --quiet
           
           # Get the latest tag by commit date
-          LATEST_TAG=$(git describe --tags "$(git rev-list --tags --max-count=1)" 2>/dev/null || echo "")
+          LATEST_VERSION=$(git describe --tags "$(git rev-list --tags --max-count=1)" 2>/dev/null || echo "")
           
-          if [[ -z "$LATEST_TAG" ]]; then
+          if [[ -z "LATEST_VERSION" ]]; then
           echo "❗️No tags found, assuming first release"
           LATEST_VERSION="1.0.0"
           fi
