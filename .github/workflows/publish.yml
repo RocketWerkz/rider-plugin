@@ -134,7 +134,7 @@ jobs:
           $file    = "docs/updatePlugins.xml"
           $url     = "https://github.com/RocketWerkz/rider-plugin/releases/download/$version/RW.Brutal-$version.zip"
 
-          [xml]$xml = Get-Content $file
+          [xml]$xml = Get-Content $file -Raw
 
           $plugin = $xml.CreateElement("plugin")
           $plugin.SetAttribute("id", "com.rw.brutal.plugin")
@@ -144,7 +144,7 @@ jobs:
           $plugin.SetAttribute("name", "RW Brutal Plugin")
           $plugin.SetAttribute("description", "The internal RocketWerkz plugin for Brutal in Rider.")
 
-          $xml.plugins.AppendChild($plugin) | Out-Null
+          $xml.DocumentElement.AppendChild($plugin) | Out-Null
           $xml.Save($file)
 
       - name: Commit updated updatePlugins.xml
