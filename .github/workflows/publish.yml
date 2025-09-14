@@ -137,11 +137,11 @@ jobs:
           [xml]$xml = Get-Content $file -Raw
 
           $plugin = $xml.CreateElement("plugin")
-          $plugin.SetAttribute("id", "com.BRUTAL.plugin")
+          $plugin.SetAttribute("id", "RW.Brutal")
           $plugin.SetAttribute("url", $url)
           $plugin.SetAttribute("version", $version)
           $plugin.SetAttribute("idea-version", "202.0-999.0")
-          $plugin.SetAttribute("name", "BRUTAL")
+          $plugin.SetAttribute("name", "RW.Brutal")
           $plugin.SetAttribute("description", "The internal RocketWerkz plugin for Brutal in Rider.")
 
           $xml.DocumentElement.AppendChild($plugin) | Out-Null
