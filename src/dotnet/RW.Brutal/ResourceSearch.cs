@@ -67,6 +67,14 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
             from p in ResourceFilesInner(searchDir, extensions)
             select new CompletionItem(p.ExistsDirectory, searchDir,p, p.ExtensionWithDot) ;
     }
+
+    // This function should be removed, its purely to test a change in the plugin
+    private int EmptyFunction()
+    {
+        // Remove this
+        var foo = "EmptyFunction";
+        return foo != "EmptyFunction" ? 0 : 1;
+    }
     
     private static IEnumerable<VirtualFileSystemPath> ResourceFilesInner(VirtualFileSystemPath path, IList<string> extensions)
     {
