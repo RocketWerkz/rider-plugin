@@ -9,42 +9,42 @@ using JetBrains.ReSharper.Psi.CSharp;
 using JetBrains.ReSharper.Psi.CSharp.Tree;
 using JetBrains.ReSharper.Psi.Tree;
 
-namespace RW.Brutal
+namespace RW.Brutal;
+
+// `Instantiation.DemandAnyThreadSafe` specifies that this daemon stage can be instantiated in a thread-safe manner.
+// `CSharpDaemonStageBase` is a daemon stage specifically for analyzing C# files.
+[DaemonStage(Instantiation.DemandAnyThreadSafe, StagesBefore = [typeof(IdentifierHighlightingStage)])]
+public class ColorHighlightingStage : CSharpDaemonStageBase
 {
-    // `Instantiation.DemandAnyThreadSafe` specifies that this daemon stage can be instantiated in a thread-safe manner.
-    // `CSharpDaemonStageBase` is a daemon stage specifically for analyzing C# files.
-    [DaemonStage(Instantiation.DemandAnyThreadSafe, StagesBefore = [typeof(IdentifierHighlightingStage)])]
-    public class ColorHighlightingStage : CSharpDaemonStageBase
+    /// <summary>
+    ///     Creates the Daemon Stage Process, which performs the actual analysis or highlighting.
+    /// </summary>
+    // <param name="process">The current daemon process that is analyzing the file.</param>
+    // <param name="settings">Settings for the current context (eg. highlighting preferences).</param>
+    // <param name="processKind">Specifies what type of analysis is being performed (eg. visible document analysis).</param>
+    // <param name="file">The C# file being analyzed.</param>
+    protected override IDaemonStageProcess CreateProcess(
+        IDaemonProcess process,
+        IContextBoundSettingsStore settings,
+        DaemonProcessKind processKind,
+        ICSharpFile file)
     {
-        /// <summary>
-        ///     Creates the Daemon Stage Process, which performs the actual analysis or highlighting.
-        /// </summary>
-        // <param name="process">The current daemon process that is analyzing the file.</param>
-        // <param name="settings">Settings for the current context (eg. highlighting preferences).</param>
-        // <param name="processKind">Specifies what type of analysis is being performed (eg. visible document analysis).</param>
-        // <param name="file">The C# file being analyzed.</param>
-        protected override IDaemonStageProcess CreateProcess(
-            IDaemonProcess process,
-            IContextBoundSettingsStore settings,
-            DaemonProcessKind processKind,
-            ICSharpFile file)
+        var isVisible = processKind is DaemonProcessKind.VISIBLE_DOCUMENT;
+        var settingsValue = settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled);
+
+        if (isVisible && settingsValue)
         {
-            var isVisible = processKind is DaemonProcessKind.VISIBLE_DOCUMENT;
-            var settingsValue = settings.GetValue(HighlightingSettingsAccessor.ColorUsageHighlightingEnabled);
-            
-            if (isVisible && settingsValue)
-            {
-                var provider = file.GetSolution().GetComponents2<IColorReferenceProvider>();
-                return new ColorHighlighterProcess(provider, process, settings, file);
-            }
-            return null;
+            var providers = file.GetSolution().GetComponents2<IColorReferenceProvider>();
+            return new ColorHighlighterProcess(providers, process, settings, file);
         }
 
-        protected override bool IsSupported(IPsiSourceFile sourceFile)
-        {
-            // Determines whether this daemon stage should run on the given source file and ensures that the file
-            // belongs to the C# language
-            return sourceFile.IsValid() && sourceFile.IsLanguageSupported<CSharpLanguage>();
-        }
+        return null;
+    }
+
+    protected override bool IsSupported(IPsiSourceFile sourceFile)
+    {
+        // Determines whether this daemon stage should run on the given source file and ensures that the file
+        // belongs to the C# language
+        return sourceFile.IsValid() && sourceFile.IsLanguageSupported<CSharpLanguage>();
     }
 }

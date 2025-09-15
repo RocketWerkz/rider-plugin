@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using JetBrains.Application;
 using JetBrains.Application.Parts;
-using JetBrains.Diagnostics;
 using JetBrains.Metadata.Reader.API;
 using JetBrains.ReSharper.Feature.Services.OnlineHelp;
 using JetBrains.ReSharper.Psi;

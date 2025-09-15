@@ -37,8 +37,7 @@ public class ResourceSearch : CSharpItemsProviderBase<CSharpCodeCompletionContex
         return context.BasicContext.CodeCompletionType == CodeCompletionType.BasicCompletion;
     }
     
-    private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType = new
-        Dictionary<IClrTypeName, IList<string>>();
+    private static readonly Dictionary<IClrTypeName, IList<string>> ourFileExtensionsByType = new();
     
     /// <summary>
     ///     Suggests full paths to resource files based on the string completion's context.
