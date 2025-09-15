@@ -17,11 +17,16 @@ namespace RW.Brutal
 
         public static ColorTypes GetInstance(IPsiModule module)
         {
-            var colorTypes = module.GetData(ourColorTypesKey);
-            if (colorTypes != null) return colorTypes;
-            colorTypes = new ColorTypes(module);
+            // var colorTypes = module.GetData(ourColorTypesKey);
+            // if (colorTypes is not null)
+            //     return colorTypes;
+            
+            // BUG-FIX: need to create ColorTypes each time
+            // Gets around issue where IDE goes into Debug mode and daemon changes process
+            // giving each property a different instance type making IsColorType() not return correct value
+            // - Brogan 2025-09-15
+            var colorTypes = new ColorTypes(module);
             module.PutData(ourColorTypesKey, colorTypes);
-
             return colorTypes;
         }
 
@@ -54,13 +59,20 @@ namespace RW.Brutal
         /// </summary>
         public bool IsColorType([CanBeNull] ITypeElement typeElement)
         {
-            return (ColorFloat3Type != null && ColorFloat3Type.Equals(typeElement))
-                   || (ColorFloat4Type != null && ColorFloat4Type.Equals(typeElement))
-                   || (ColorByte3Type != null && ColorByte3Type.Equals(typeElement))
-                   || (ColorByte4Type != null && ColorByte4Type.Equals(typeElement))
-                   || (ColorUshort3Type != null && ColorUshort3Type.Equals(typeElement))
-                   || (ColorUshort4Type != null && ColorUshort4Type.Equals(typeElement))
-                   || (ColorType != null && ColorType.Equals(typeElement));
+            var isFloat3 = ColorFloat3Type != null && ColorFloat3Type.Equals(typeElement);
+            var isFloat4 = ColorFloat4Type != null && ColorFloat4Type.Equals(typeElement);
+            var isByte3 = ColorByte3Type != null && ColorByte3Type.Equals(typeElement);
+            var isByte4 = ColorByte4Type != null && ColorByte4Type.Equals(typeElement);
+            var isUshort3 = ColorUshort3Type != null && ColorUshort3Type.Equals(typeElement);
+            var isUshort4 = ColorUshort4Type != null && ColorUshort4Type.Equals(typeElement);
+            var isColor = ColorType != null && ColorType.Equals(typeElement);
+            return isFloat3
+                   || isFloat4 
+                   || isByte3
+                   || isByte4
+                   || isUshort3
+                   || isUshort4
+                   || isColor;
         }
         
         /// <summary>
