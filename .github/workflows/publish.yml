@@ -157,7 +157,7 @@ jobs:
             $plugin.SetAttribute("name", "RW.Brutal")
             $plugin.SetAttribute("description", "The internal RocketWerkz plugin for Brutal in Rider.")
             $xml.DocumentElement.AppendChild($plugin) | Out-Null
-        }
+          }
 
           $xml.Save($file)
 
